@@ -27,11 +27,10 @@ jobs:
       - name: Test registry connectivity  
         run: |
               curl http://a64be425b0f424134b057687c4653ba2-2081084264.us-west-2.elb.amazonaws.com:8443/pulp/api/v3/
-			  cat ~/.docker/config.json
 
       - name: Docker Login        
         run: |
-              echo "v4QkSIh6bXbCqzFf8SSX7tTKZg25rU65" | docker  login a64be425b0f424134b057687c4653ba2-2081084264.us-west-2.elb.amazonaws.com:8443 -u "admin" --password-stdin
+              echo "v4QkSIh6bXbCqzFf8SSX7tTKZg25rU65" | docker  login http://a64be425b0f424134b057687c4653ba2-2081084264.us-west-2.elb.amazonaws.com:8443 -u "admin" --password-stdin
 
       - name: Pull the Image from repo and push it to pulp
         run: |              
