@@ -27,6 +27,8 @@ jobs:
               cat ~/.docker/config.json
               cat /etc/docker/daemon.json || echo "Daemon config not accessible"
               sleep 10
+              sudo systemctl restart docker
+
 
 
       - name: Docker info
