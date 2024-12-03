@@ -16,18 +16,18 @@ env:
 
 jobs:
   create_pulp_repo:
-    runs-on: ubuntu
+    runs-on: ubuntu-latest
 
     steps: 
-      - name: Update the Intacct Cert.
+      - name: Update the cert
         run: | 
              sudo update-ca-certificates && curl https://pulp-test.dev.app.example.com/pulp/api/v3/
              
-      - name: Docker Login with Ignored TLS
+      - name: Docker Login
         
         run: |
               nslookup pulp-test.dev.app.example.com
-              echo "${{ secrets.PULP_AZ_PASSWORD }}" | docker  login pulp-test.dev.app.example.com -u "${{ secrets.PULP_USER }}" --password-stdin
+              echo "${{ secrets.PULP_PASSWORD }}" | docker  login pulp-test.dev.app.example.com -u "${{ secrets.PULP_USER }}" --password-stdin
 
       - name: Pull the Image from repo and push it to pulp
         run: |
