@@ -1,0 +1,46 @@
+apiVersion: repo-manager.pulpproject.org/v1beta2
+kind: Pulp
+metadata:
+  name: pulp
+  namespace: pulp
+spec:
+  admin_password_secret: pulp-admin-password
+  api:
+    gunicorn_timeout: 90
+    gunicorn_workers: 2
+    replicas: 1
+  container_auth_private_key_name: container_auth_private_key.pem
+  container_auth_public_key_name: container_auth_public_key.pem
+  container_token_secret: pulp-container-auth
+  content:
+    gunicorn_timeout: 90
+    gunicorn_workers: 2
+    replicas: 1
+  database:
+    external_db_secret: external-database
+  db_fields_encryption_secret: pulp-db-fields-encryption
+  deployment_type: pulp
+  file_storage_access_mode: ReadWriteOnce
+  file_storage_size: 10Gi
+  file_storage_storage_class: standard
+  image: quay.io/pulp/pulp-minimal
+  image_pull_policy: Always
+  image_version: stable
+  image_web: quay.io/pulp/pulp-web
+  image_web_version: stable
+  mount_trusted_ca: false
+  pulp_secret_key: pulp-secret-key
+  worker:
+    replicas: 1
+  pulp_settings:
+    ENABLED_PLUGINS:
+    - pulp_container
+    api_root: "/pulp/"
+    allowed_export_paths:
+      - /tmp
+    allowed_import_paths:
+      - /tmp
+    analytics: false
+    token_server: a64be425b0f424134b057687c4653ba2-2081084264.us-west-2.elb.amazonaws.com:8443/token
+    content_origin: ab7d6892fa08e46cea5e0656c73f1391-717729031.us-west-2.elb.amazonaws.com:30001
+    ansible_api_hostname: a64be425b0f424134b057687c4653ba2-2081084264.us-west-2.elb.amazonaws.com:8443
