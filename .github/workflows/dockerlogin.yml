@@ -21,7 +21,7 @@ jobs:
     steps: 
       - name: Configure Docker to allow HTTP
         run: |
-              mkdir -p ~/.docker && docker info
+              mkdir -p ~/.docker 
               echo '{"insecure-registries": ["a64be425b0f424134b057687c4653ba2-2081084264.us-west-2.elb.amazonaws.com:8443"]}' > ~/.docker/config.json
               echo '{"insecure-registries": ["a64be425b0f424134b057687c4653ba2-2081084264.us-west-2.elb.amazonaws.com:8443"]}' | sudo tee /etc/docker/daemon.json > /dev/null
               cat ~/.docker/config.json
@@ -35,7 +35,7 @@ jobs:
 
       - name: Docker Login        
         run: |
-              echo "v4QkSIh6bXbCqzFf8SSX7tTKZg25rU65" | docker  login a64be425b0f424134b057687c4653ba2-2081084264.us-west-2.elb.amazonaws.com:8443 -u "admin" --password-stdin
+              echo "v4QkSIh6bXbCqzFf8SSX7tTKZg25rU65" | docker login a64be425b0f424134b057687c4653ba2-2081084264.us-west-2.elb.amazonaws.com:8443 -u "admin" --password-stdin --tls-verify=false
 
       - name: Pull the Image from repo and push it to pulp
         run: |              
