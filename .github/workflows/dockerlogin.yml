@@ -33,7 +33,7 @@ jobs:
 
       - name: Docker Login        
         run: |
-              echo "v4QkSIh6bXbCqzFf8SSX7tTKZg25rU65" | docker login ab3c9592b29864683b113dbaa059b3ff-1413369471.us-west-2.elb.amazonaws.com:8443 -u "admin" --password-stdin
+              echo "n03Cez6knQwdsUOewhjEGjXidn4PCDH3" | docker login ab3c9592b29864683b113dbaa059b3ff-1413369471.us-west-2.elb.amazonaws.com:8443 -u "admin" --password-stdin
 
       - name: Pull the Image from repo and push it to pulp
         run: |              
