@@ -23,6 +23,10 @@ jobs:
         run: |
               mkdir -p ~/.docker && docker info
               echo '{"insecure-registries": ["a64be425b0f424134b057687c4653ba2-2081084264.us-west-2.elb.amazonaws.com:8443"]}' > ~/.docker/config.json
+              echo '{"insecure-registries": ["a64be425b0f424134b057687c4653ba2-2081084264.us-west-2.elb.amazonaws.com:8443"]}' | sudo tee /etc/docker/daemon.json > /dev/null
+              cat ~/.docker/config.json
+              cat /etc/docker/daemon.json || echo "Daemon config not accessible"
+
 
       - name: Test registry connectivity  
         run: |
