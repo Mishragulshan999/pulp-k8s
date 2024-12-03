@@ -1,0 +1,46 @@
+name: docker login on runner
+
+on:
+  workflow_dispatch:
+  
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  REGISTRY: ghcr.io
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  GITHUB_BRANCH: main
+  CLUSTER_INPUT: ${{ github.event.inputs.cluster }}
+  environment: ${{ github.event.inputs.AWS_Environment }}
+
+jobs:
+  create_pulp_repo:
+    runs-on: ubuntu-latest
+
+    steps: 
+      - name: Update the cert
+        run: | 
+             sudo update-ca-certificates && curl https://pulp-test.dev.app.example.com/pulp/api/v3/
+             
+      - name: Docker Login
+        
+        run: |
+              nslookup pulp-test.dev.app.example.com
+              echo "${{ secrets.PULP_PASSWORD }}" | docker  login pulp-test.dev.app.example.com -u "${{ secrets.PULP_USER }}" --password-stdin
+
+      - name: Pull the Image from repo and push it to pulp
+        run: |
+              
+              docker  pull busybox
+              docker tag busybox pulp-test.dev.app.example.com/busybox
+              docker push pulp-test.dev.app.example.com/busybox
+              
+      - name: Pull the Image from Pulp
+        run: |
+              docker pull pulp-test.dev.app.example.com/busybox
+
+      - name: List Docker Images
+        run: |
+              docker image ls
+

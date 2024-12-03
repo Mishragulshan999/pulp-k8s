@@ -18,27 +18,21 @@ jobs:
   create_pulp_repo:
     runs-on: ubuntu-latest
 
-    steps: 
-      - name: Update the cert
-        run: | 
-             sudo update-ca-certificates && curl https://pulp-test.dev.app.example.com/pulp/api/v3/
-             
-      - name: Docker Login
-        
+    steps:              
+      - name: Docker Login        
         run: |
-              nslookup pulp-test.dev.app.example.com
-              echo "${{ secrets.PULP_PASSWORD }}" | docker  login pulp-test.dev.app.example.com -u "${{ secrets.PULP_USER }}" --password-stdin
+              nslookup a64be425b0f424134b057687c4653ba2-2081084264.us-west-2.elb.amazonaws.com
+              echo "v4QkSIh6bXbCqzFf8SSX7tTKZg25rU65" | docker  login a64be425b0f424134b057687c4653ba2-2081084264.us-west-2.elb.amazonaws.com -u "admin" --password-stdin
 
       - name: Pull the Image from repo and push it to pulp
-        run: |
-              
+        run: |              
               docker  pull busybox
-              docker tag busybox pulp-test.dev.app.example.com/busybox
-              docker push pulp-test.dev.app.example.com/busybox
+              docker tag busybox a64be425b0f424134b057687c4653ba2-2081084264.us-west-2.elb.amazonaws.com:8443/busybox
+              docker push a64be425b0f424134b057687c4653ba2-2081084264.us-west-2.elb.amazonaws.com:8443/busybox
               
       - name: Pull the Image from Pulp
         run: |
-              docker pull pulp-test.dev.app.example.com/busybox
+              docker pull a64be425b0f424134b057687c4653ba2-2081084264.us-west-2.elb.amazonaws.com:8443/busybox
 
       - name: List Docker Images
         run: |
