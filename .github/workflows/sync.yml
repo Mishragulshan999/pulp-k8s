@@ -1,0 +1,51 @@
+name: docker login on runner
+
+on:
+  workflow_dispatch:
+  
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  REGISTRY: ghcr.io
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  GITHUB_BRANCH: main
+  CLUSTER_INPUT: ${{ github.event.inputs.cluster }}
+  environment: ${{ github.event.inputs.AWS_Environment }}
+
+jobs:
+  create_pulp_repo:
+    runs-on: ubuntu-latest
+
+    steps: 
+      - name: Configure Docker to allow HTTP
+        run: |
+              mkdir -p ~/.docker 
+              echo '{"insecure-registries": ["ab3c9592b29864683b113dbaa059b3ff-1413369471.us-west-2.elb.amazonaws.com:8443"]}' > ~/.docker/config.json
+              echo '{"insecure-registries": ["ab3c9592b29864683b113dbaa059b3ff-1413369471.us-west-2.elb.amazonaws.com:8443"]}' | sudo tee /etc/docker/daemon.json > /dev/null
+              sudo systemctl restart docker
+              sleep 10
+
+      - name: Docker info
+        run: |
+              docker info
+
+      - name: Docker Login        
+        run: |
+              echo "n03Cez6knQwdsUOewhjEGjXidn4PCDH3" | docker login ab3c9592b29864683b113dbaa059b3ff-1413369471.us-west-2.elb.amazonaws.com:8443 -u "admin" --password-stdin
+
+      - name: Pull the Image from repo and push it to pulp
+        run: |              
+              docker pull busybox
+              docker tag busybox ab3c9592b29864683b113dbaa059b3ff-1413369471.us-west-2.elb.amazonaws.com:8443/busybox
+              docker push ab3c9592b29864683b113dbaa059b3ff-1413369471.us-west-2.elb.amazonaws.com:8443/busybox
+              
+      - name: Pull the Image from Pulp
+        run: |
+              docker pull ab3c9592b29864683b113dbaa059b3ff-1413369471.us-west-2.elb.amazonaws.com:8443/busybox
+
+      - name: List Docker Images
+        run: |
+              docker images
+
