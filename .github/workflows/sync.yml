@@ -1,4 +1,4 @@
-name: docker login on runner
+name: Sync and pull
 
 on:
   workflow_dispatch:
