@@ -40,6 +40,7 @@ jobs:
         run: |              
               docker pull busybox
               docker tag busybox a55defc8b6cea498f887c74cf245b041-739498746.ap-south-1.elb.amazonaws.com/busybox
+              podman --version
               docker push a55defc8b6cea498f887c74cf245b041-739498746.ap-south-1.elb.amazonaws.com/busybox
               
       - name: Pull the Image from Pulp
