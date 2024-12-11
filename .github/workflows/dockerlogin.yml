@@ -22,6 +22,7 @@ jobs:
       - name: Configure Docker to allow HTTP
         run: |
               mkdir -p ~/.docker 
+              sudo systemctl restart docker
               echo '{"insecure-registries": ["a55defc8b6cea498f887c74cf245b041-739498746.ap-south-1.elb.amazonaws.com"]}' > ~/.docker/config.json
               echo '{"insecure-registries": ["a55defc8b6cea498f887c74cf245b041-739498746.ap-south-1.elb.amazonaws.com"]}' | sudo tee /etc/docker/daemon.json > /dev/null
               sudo systemctl restart docker
