@@ -22,8 +22,8 @@ jobs:
       - name: Configure Docker to allow HTTP
         run: |
               mkdir -p ~/.docker 
-              echo '{"insecure-registries": ["ab3c9592b29864683b113dbaa059b3ff-1413369471.us-west-2.elb.amazonaws.com:8443"]}' > ~/.docker/config.json
-              echo '{"insecure-registries": ["ab3c9592b29864683b113dbaa059b3ff-1413369471.us-west-2.elb.amazonaws.com:8443"]}' | sudo tee /etc/docker/daemon.json > /dev/null
+              echo '{"insecure-registries": ["a55defc8b6cea498f887c74cf245b041-739498746.ap-south-1.elb.amazonaws.com"]}' > ~/.docker/config.json
+              echo '{"insecure-registries": ["a55defc8b6cea498f887c74cf245b041-739498746.ap-south-1.elb.amazonaws.com"]}' | sudo tee /etc/docker/daemon.json > /dev/null
               sudo systemctl restart docker
               sleep 10
 
@@ -33,19 +33,18 @@ jobs:
 
       - name: Docker Login        
         run: |
-              echo "n03Cez6knQwdsUOewhjEGjXidn4PCDH3" | docker login ab3c9592b29864683b113dbaa059b3ff-1413369471.us-west-2.elb.amazonaws.com:8443 -u "admin" --password-stdin
+              echo "AemPBnbs5hVmW1uE0W1hA8lWIAj3YbG3" | docker login a55defc8b6cea498f887c74cf245b041-739498746.ap-south-1.elb.amazonaws.com -u "admin" --password-stdin
 
       - name: Pull the Image from repo and push it to pulp
         run: |              
               docker pull busybox
-              docker tag busybox ab3c9592b29864683b113dbaa059b3ff-1413369471.us-west-2.elb.amazonaws.com:8443/busybox
-              docker push ab3c9592b29864683b113dbaa059b3ff-1413369471.us-west-2.elb.amazonaws.com:8443/busybox
+              docker tag busybox a55defc8b6cea498f887c74cf245b041-739498746.ap-south-1.elb.amazonaws.com/busybox
+              docker push a55defc8b6cea498f887c74cf245b041-739498746.ap-south-1.elb.amazonaws.com/busybox
               
       - name: Pull the Image from Pulp
         run: |
-              docker pull ab3c9592b29864683b113dbaa059b3ff-1413369471.us-west-2.elb.amazonaws.com:8443/busybox
+              docker pull a55defc8b6cea498f887c74cf245b041-739498746.ap-south-1.elb.amazonaws.com/busybox
 
       - name: List Docker Images
         run: |
               docker images
-
