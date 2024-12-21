@@ -41,6 +41,6 @@ spec:
     allowed_import_paths:
       - /tmp
     analytics: false
-    token_server: a64be425b0f424134b057687c4653ba2-2081084264.us-west-2.elb.amazonaws.com:8443/token
-    content_origin: ab7d6892fa08e46cea5e0656c73f1391-717729031.us-west-2.elb.amazonaws.com:30001
-    ansible_api_hostname: a64be425b0f424134b057687c4653ba2-2081084264.us-west-2.elb.amazonaws.com:8443
+    token_server: http://a57beb7954daf448aa21b1468b81b3fd-104912653.ap-south-1.elb.amazonaws.com/token/
+    content_origin: http://a2530018d8bf142ecad2c698b84b921c-607562087.ap-south-1.elb.amazonaws.com:30001
+    ansible_api_hostname: http://a57beb7954daf448aa21b1468b81b3fd-104912653.ap-south-1.elb.amazonaws.com
