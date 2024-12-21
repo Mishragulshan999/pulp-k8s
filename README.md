@@ -76,7 +76,7 @@ Output:- XXXXX
 ### 1. Create a Remote in Pulp
 
 ```
-curl -u admin:XXXXXXXX -X POST http://pulp-test.dev.app.example.com/pulp/api/v3/remotes/container/container/ \
+curl -u admin:XXXXXXXX -X POST http://pulp-dc307.dev.app.intacct.com/pulp/api/v3/remotes/container/container/ \
 -H "Content-Type: application/json" \
 -d '{
   "name": "docker-hub-test",
@@ -90,7 +90,7 @@ curl -u admin:XXXXXXXX -X POST http://pulp-test.dev.app.example.com/pulp/api/v3/
 ### 2. Create a Repository in Pulp
 
 ```
-curl -u admin:XXXXXXX -X POST http://pulp-test.dev.app.example.com/pulp/api/v3/repositories/container/container/ \
+curl -u admin:XXXXXXX -X POST http://pulp-dc307.dev.app.intacct.com/pulp/api/v3/repositories/container/container/ \
 -H "Content-Type: application/json" \
 -d '{
   "name": "docker-hub-test"
@@ -100,7 +100,7 @@ curl -u admin:XXXXXXX -X POST http://pulp-test.dev.app.example.com/pulp/api/v3/r
 ###  3. Sync the Remote with the Repository
 
 ```
-curl -u admin:XXXXXX -X POST http://pulp-test.dev.app.example.com/pulp/api/v3/repositories/container/container/01925816-4bf8-73ad-b0f4-351f796dd94e/sync/ \
+curl -u admin:XXXXXX -X POST http://pulp-dc307.dev.app.intacct.com/pulp/api/v3/repositories/container/container/01925816-4bf8-73ad-b0f4-351f796dd94e/sync/ \
 -H "Content-Type: application/json" \
 -d '{
   "remote": "/pulp/api/v3/remotes/container/container/01925815-7b2c-783e-8e1f-8f7afe6cfcbc/"
@@ -109,24 +109,19 @@ curl -u admin:XXXXXX -X POST http://pulp-test.dev.app.example.com/pulp/api/v3/re
 ### Login the pulp repo
 
 ```
-sudo docker login -u admin -p password pulp-test.dev.app.example.com
+sudo docker login -u admin -p password pulp-dc307.dev.app.intacct.com
 ```
 
 ```
-pulp repo: http://pulp-test.dev.app.example.com/pulp/api/v3/repositories/
+pulp repo: http://pulp-dc307.dev.app.intacct.com/pulp/api/v3/repositories/
 ```
 ```
 Pulp UI links: 
-http://pulp-test.dev.app.example.com/pulp/api/v3/repositories/
-http://pulp-test.dev.app.example.com/pulp/api/v3/artifacts/
-http://pulp-test.dev.app.example.com/pulp/api/v3/remotes/
-http://pulp-test.dev.app.example.com/pulp/api/v3/content/
-http://pulp-test.dev.app.example.com/pulp/api/v3/distributions/
-http://pulp-test.dev.app.example.com/pulp/api/v3/tasks/
-
-Pulp Content Server links:
-http://pulp-test.dev.app.example.com/pulp/content/
+http://pulp-dc307.dev.app.intacct.com/pulp/api/v3/repositories/
+http://pulp-dc307.dev.app.intacct.com/pulp/api/v3/artifacts/
+http://pulp-dc307.dev.app.intacct.com/pulp/api/v3/remotes/
+http://pulp-dc307.dev.app.intacct.com/pulp/api/v3/content/
+http://pulp-dc307.dev.app.intacct.com/pulp/api/v3/distributions/
+http://pulp-dc307.dev.app.intacct.com/pulp/api/v3/tasks/
 ```
-
-
 
