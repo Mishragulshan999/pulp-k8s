@@ -1,13 +1,10 @@
-allowVolumeExpansion: true
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  labels:
-    addonmanager.kubernetes.io/mode: EnsureExists
-    kubernetes.io/cluster-service: "true"
-  name: standard
+  name: azurefile  # Name of the new storage class
+provisioner: file.csi.azure.com  # Azure Files provisioner
 parameters:
-  skuname: StandardSSD_LRS
-provisioner: disk.csi.azure.com
-reclaimPolicy: Delete
-volumeBindingMode: WaitForFirstConsumer
+  skuName: Standard_LRS  # Azure Files SKU (Standard Locally Redundant Storage)
+allowVolumeExpansion: true
+reclaimPolicy: Retain  # The PV is retained after PVC is deleted
+volumeBindingMode: Immediate  # Bind immediately to a PVC request
