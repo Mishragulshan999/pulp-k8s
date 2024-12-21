@@ -1,4 +1,3 @@
-#test
 allowVolumeExpansion: true
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
@@ -9,4 +8,4 @@ parameters:
   type: gp2
 provisioner: kubernetes.io/aws-ebs
 reclaimPolicy: Delete
-volumeBindingMode: WaitForFirstConsumer
+volumeBindingMode: Immediate
