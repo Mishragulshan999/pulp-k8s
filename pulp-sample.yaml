@@ -41,6 +41,6 @@ spec:
     allowed_import_paths:
       - /tmp
     analytics: false
-    token_server: http://a57beb7954daf448aa21b1468b81b3fd-104912653.ap-south-1.elb.amazonaws.com/token/
-    content_origin: http://a2530018d8bf142ecad2c698b84b921c-607562087.ap-south-1.elb.amazonaws.com:30001
-    ansible_api_hostname: http://a57beb7954daf448aa21b1468b81b3fd-104912653.ap-south-1.elb.amazonaws.com
+    token_server: https://pulpartifactory.site/token/
+    content_origin: http://aaef97b07caee43a5ab8f59df1791e64-2007268407.ap-south-1.elb.amazonaws.com:30001
+    ansible_api_hostname: https://pulpartifactory.site
