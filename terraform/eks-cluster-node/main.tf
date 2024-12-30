@@ -33,11 +33,3 @@ module "eks_node_group" {
 
   depends_on = [module.eks_auth_mode]
 }
-
-# Deploy Application (Step 4)
-module "eks_application" {
-  source       = "./eks-application"
-  cluster_name = module.eks_cluster.cluster_name
-
-  depends_on = [module.eks_node_group]
-}

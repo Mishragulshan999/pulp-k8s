@@ -42,5 +42,5 @@ spec:
       - /tmp
     analytics: false
     token_server: https://pulpartifactory.site/token/
-    content_origin: http://a7a97e01dc8b7462ba3a1a28ab70354f-1966195553.ap-south-1.elb.amazonaws.com:30001
+    content_origin: http://aaef97b07caee43a5ab8f59df1791e64-2007268407.ap-south-1.elb.amazonaws.com:30001
     ansible_api_hostname: https://pulpartifactory.site

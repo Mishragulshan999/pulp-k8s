@@ -1,0 +1,50 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: pulp-app
+  namespace: argocd  # ArgoCD application namespace
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/pavanbandaru/pulp-k8s.git  # Your Git repository URL
+    path: deploy/argocd  # Path to the resources within the repo
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: pulp  # Deploy resources in the 'pulp' namespace
+  syncPolicy:
+    automated:
+      prune: true  # Automatically delete resources that are no longer defined
+      selfHeal: true  # Automatically sync the app if it drifts out of sync
+    syncOptions:
+      - CreateNamespace=true  # Automatically create the namespaces if they don't exist
+  syncWave: 0  # Initial wave to create namespaces and related resources (db namespace, storage class)
+
+  # Resources in the sync sequence:
+  resources:
+    # First, create the 'db' namespace
+    - name: db-namespace
+      path: deploy/argocd/namespaces/db-namespace.yaml
+      syncWave: 0  # Sync wave for the db namespace creation
+
+    # Then, create the 'pulp' namespace
+    - name: pulp-namespace
+      path: deploy/argocd/namespaces/pulp-namespace.yaml
+      syncWave: 1  # Sync wave for the pulp namespace creation (after db namespace)
+
+    # After that, apply db-related resources (like the storage class and PostgreSQL deployment)
+    - name: standard-sc-aws
+      path: deploy/argocd/db/standard-sc-aws.yaml
+      syncWave: 2  # Sync wave for db storage class
+
+    - name: postgres
+      path: deploy/argocd/db/postgres.yaml
+      syncWave: 3  # Sync wave for db PostgreSQL deployment (after storage class)
+
+    # Finally, apply pulp-specific resources (secret and sample app)
+    - name: external-db-secret
+      path: deploy/argocd/pulp/external-db-secret.yaml
+      syncWave: 4  # Sync wave for the pulp external DB secret
+
+    - name: pulp-sample
+      path: deploy/argocd/pulp/pulp-sample.yaml
+      syncWave: 5  # Sync wave for the pulp sample app (last)
