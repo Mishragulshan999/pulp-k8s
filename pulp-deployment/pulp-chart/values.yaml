@@ -62,5 +62,5 @@ pulp:
       - /tmp
     analytics: false
     tokenServer: https://pulpartifactory.site/token/
-    contentOrigin: http://acb31665dc448498b83c30cabcc7168e-218894027.ap-south-1.elb.amazonaws.com:30001
+    contentOrigin: http://acb31665dc448498b83c30cabcc7168e-218894027.ap-south-1.elb.amazonaws.com:50001
     ansibleApiHostname: https://pulpartifactory.site
