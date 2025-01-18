@@ -1,0 +1,52 @@
+name: docker login on runner
+
+on:
+  workflow_dispatch:
+  
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  REGISTRY: ghcr.io
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  GITHUB_BRANCH: main
+  CLUSTER_INPUT: ${{ github.event.inputs.cluster }}
+  environment: ${{ github.event.inputs.AWS_Environment }}
+
+jobs:
+  create_pulp_repo:
+    runs-on: ubuntu-latest
+
+    steps: 
+      - name: Configure Docker to allow HTTP
+        run: |
+              mkdir -p ~/.docker 
+              sudo systemctl restart docker
+              echo '{"insecure-registries": ["a55defc8b6cea498f887c74cf245b041-739498746.ap-south-1.elb.amazonaws.com"]}' > ~/.docker/config.json
+              echo '{"insecure-registries": ["a55defc8b6cea498f887c74cf245b041-739498746.ap-south-1.elb.amazonaws.com"]}' | sudo tee /etc/docker/daemon.json > /dev/null
+              sudo systemctl restart docker
+              sleep 10
+
+      - name: Docker info
+        run: |
+              docker info
+
+      - name: Docker Login        
+        run: |
+              echo "AemPBnbs5hVmW1uE0W1hA8lWIAj3YbG3" | docker login a55defc8b6cea498f887c74cf245b041-739498746.ap-south-1.elb.amazonaws.com -u "admin" --password-stdin
+
+      - name: Pull the Image from repo and push it to pulp
+        run: |              
+              docker pull busybox
+              docker tag busybox a55defc8b6cea498f887c74cf245b041-739498746.ap-south-1.elb.amazonaws.com/busybox
+              podman --version
+              docker push a55defc8b6cea498f887c74cf245b041-739498746.ap-south-1.elb.amazonaws.com/busybox
+              
+      - name: Pull the Image from Pulp
+        run: |
+              docker pull a55defc8b6cea498f887c74cf245b041-739498746.ap-south-1.elb.amazonaws.com/busybox
+
+      - name: List Docker Images
+        run: |
+              docker images

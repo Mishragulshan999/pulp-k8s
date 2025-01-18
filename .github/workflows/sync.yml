@@ -1,0 +1,65 @@
+name: Pulp Repository Setup for GitHub Packages
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  setup_pulp_repo:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Log in to GitHub Container Registry (ghcr.io)
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3.0.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Step 2: Retrieve Pulp Repository HREF
+      - name: Retrieve Repository HREF
+        id: get_repo_href
+        run: |
+          response=$(curl -u "${{ secrets.PULP_USER }}:${{ secrets.PULP_PASSWORD }}" \
+                  -X GET http://pulp-dc02.intacct.com:80/pulp/api/v3/repositories/container/container/)
+          REPO_HREF=$(echo "$response" | jq -r '.results[] | select(.name=="selenium-kiran") | .pulp_href')
+          echo "Repository HREF: $REPO_HREF"
+          echo "REPO_HREF=$REPO_HREF" >> $GITHUB_ENV
+
+      # Step 3: Retrieve Pulp Remote HREF
+      - name: Retrieve Remote HREF
+        id: get_remote_href
+        run: |
+          response=$(curl -u "${{ secrets.PULP_USER }}:${{ secrets.PULP_PASSWORD }}" \
+                  -X GET http://pulp-dc02.intacct.com:80/pulp/api/v3/remotes/container/container/)
+          REMOTE_HREF=$(echo "$response" | jq -r '.results[] | select(.name=="selenium-kiran") | .pulp_href')
+          echo "Remote HREF: $REMOTE_HREF"
+          echo "REMOTE_HREF=$REMOTE_HREF" >> $GITHUB_ENV
+
+      # Step 4: Sync Remote with Repository
+      - name: Sync Remote to Repository
+        run: |
+          curl -u "${{ secrets.PULP_USER }}:${{ secrets.PULP_PASSWORD }}" \
+          -X POST "http://pulp-dc02.intacct.com:80${{ env.REPO_HREF }}sync/" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "remote": "'"${{ env.REMOTE_HREF }}"'"
+          }'
+
+      # Step 5: Log in to Pulp Registry (HTTP)
+      - name: Log in to Pulp Registry
+        run: |
+          echo "${{ secrets.PULP_PASSWORD }}" | docker login http://pulp-dc02.intacct.com \
+          -u "${{ secrets.PULP_USER }}" --password-stdin
+
+      # Step 6: Pull Image from Pulp
+      - name: Pull Docker Image from Pulp
+        run: docker pull http://pulp-dc02.intacct.com/selenium-kiran/selenium4:v1
+
+      # Step 7: List Docker Images
+      - name: Verify Pulled Images
+        run: docker image ls

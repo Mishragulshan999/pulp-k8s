@@ -1,0 +1,28 @@
+apiVersion: v1
+items:
+- apiVersion: networking.istio.io/v1
+  kind: VirtualService
+  metadata:
+    annotations:
+    labels:
+    name: pulp-virtualservice
+    namespace: pulp
+  spec:
+    gateways:
+    - istio-system/ia-ds-gateway
+    hosts:
+    - pulp-dc307.dev.app.intacct.com
+    http:
+    - match:
+      - uri:
+          prefix: /
+      retries:
+        attempts: 0
+      route:
+      - destination:
+          host: pulp-api-svc2.pulp.svc.cluster.local
+          port:
+            number: 80
+kind: List
+metadata:
+  resourceVersion: ""

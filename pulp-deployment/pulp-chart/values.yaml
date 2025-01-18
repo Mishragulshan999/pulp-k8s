@@ -1,0 +1,66 @@
+# Storage class configuration
+storageClass:
+  name: standard
+  allowVolumeExpansion: true
+  parameters:
+    fsType: ext4
+    type: gp2
+  provisioner: kubernetes.io/aws-ebs
+  reclaimPolicy: Delete
+  volumeBindingMode: Immediate
+
+# PostgreSQL configuration
+postgres:
+  namespace: db
+  image: postgres:13
+  replicas: 1
+  storage:
+    size: 1Gi
+    storageClassName: standard
+  env:
+    POSTGRES_DB: pulp
+    POSTGRES_USER: pulp-admin
+    POSTGRES_PASSWORD: password
+
+# External DB secret configuration
+externalDbSecret:
+  name: external-database
+  namespace: pulp
+  data:
+    POSTGRES_DB_NAME: pulp
+    POSTGRES_HOST: postgres.db.svc
+    POSTGRES_PASSWORD: password
+    POSTGRES_PORT: 5432
+    POSTGRES_SSLMODE: prefer
+    POSTGRES_USERNAME: pulp-admin
+
+# Pulp configuration
+pulp:
+  namespace: pulp
+  adminPasswordSecret: pulp-admin-password
+  api:
+    gunicornTimeout: 90
+    gunicornWorkers: 2
+    replicas: 1
+  content:
+    gunicornTimeout: 90
+    gunicornWorkers: 2
+    replicas: 1
+  worker:
+    replicas: 1
+  storage:
+    accessMode: ReadWriteOnce
+    size: 10Gi
+    storageClassName: standard
+  settings:
+    enabledPlugins:
+      - pulp_container
+    apiRoot: "/pulp/"
+    allowedExportPaths: 
+      - /tmp
+    allowedImportPaths:
+      - /tmp
+    analytics: false
+    tokenServer: https://pulpartifactory.site/token/
+    contentOrigin: http://acb31665dc448498b83c30cabcc7168e-218894027.ap-south-1.elb.amazonaws.com:30000
+    ansibleApiHostname: https://pulpartifactory.site

@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: pulp-api
+    app.kubernetes.io/component: api
+    app.kubernetes.io/instance: pulp-api-pulp
+    app.kubernetes.io/managed-by: pulp-operator
+    app.kubernetes.io/name: pulp-api
+    app.kubernetes.io/part-of: pulp
+    pulp_cr: pulp
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+  name: pulp-api-svc2
+  namespace: pulp
+spec:
+  ports:
+  - name: api-24817
+    port: 80
+    protocol: TCP
+    targetPort: 24817
+  selector:
+    app: pulp-api
+    app.kubernetes.io/component: api
+    app.kubernetes.io/instance: pulp-api-pulp
+    app.kubernetes.io/managed-by: pulp-operator
+    app.kubernetes.io/name: pulp-api
+    app.kubernetes.io/part-of: pulp
+    pulp_cr: pulp
+  sessionAffinity: None
+  type: LoadBalancer
