@@ -1,7 +1,32 @@
 [
-  {"Image": "bash", "Tag": "v1", "Status": "Deployed", "Number": 1},
-  {"Image": "busybox", "Tag": "v4", "Status": "NOT Deployed", "Number": 0},
-  {"Image": "busybox", "Tag": "v3", "Status": "Deployed", "Number": 1},
-  {"Image": "busybox", "Tag": "v2", "Status": "NOT Deployed", "Number": 0},
-  {"Image": "busybox", "Tag": "v1", "Status": "NOT Deployed", "Number": 0}
+    {
+        "Image": "bash",
+        "Tag": "v1",
+        "Status": "Deployed",
+        "Time": "2025-01-26T10:00:00Z"
+    },
+    {
+        "Image": "busybox",
+        "Tag": "v4",
+        "Status": "NOT Deployed",
+        "Time": "2025-01-26T10:00:00Z"
+    },
+    {
+        "Image": "busybox",
+        "Tag": "v3",
+        "Status": "Deployed",
+        "Time": "2025-01-26T10:00:00Z"
+    },
+    {
+        "Image": "busybox",
+        "Tag": "v2",
+        "Status": "NOT Deployed",
+        "Time": "2025-01-26T10:00:00Z"
+    },
+    {
+        "Image": "busybox",
+        "Tag": "v1",
+        "Status": "NOT Deployed",
+        "Time": "2025-01-26T10:00:00Z"
+    }
 ]
