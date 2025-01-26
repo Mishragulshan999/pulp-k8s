@@ -1,29 +1,34 @@
 [
     {
+        "Number": 1,
         "Image": "bash",
         "Tag": "v1",
         "Status": "Deployed",
         "Time": "2025-01-26T10:00:00Z"
     },
     {
+        "Number": 2,
         "Image": "busybox",
         "Tag": "v4",
         "Status": "NOT Deployed",
         "Time": "2025-01-26T10:00:00Z"
     },
     {
+        "Number": 3,
         "Image": "busybox",
         "Tag": "v3",
         "Status": "Deployed",
         "Time": "2025-01-26T10:00:00Z"
     },
     {
+        "Number": 4,
         "Image": "busybox",
         "Tag": "v2",
         "Status": "NOT Deployed",
         "Time": "2025-01-26T10:00:00Z"
     },
     {
+        "Number": 5,
         "Image": "busybox",
         "Tag": "v1",
         "Status": "NOT Deployed",
