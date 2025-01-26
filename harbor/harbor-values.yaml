@@ -1,0 +1,38 @@
+expose:
+  type: loadBalancer
+  loadBalancer:
+    serviceAnnotations:
+      service.beta.kubernetes.io/aws-load-balancer-type: "nlb"  # Use "nlb" for Network Load Balancer
+    ports:
+      httpPort: 8080
+      httpsPort: 8443
+  tls:
+    enabled: false        # true if using https
+    # certSource: auto    # Uncomment and configure if using https
+
+externalURL: http://harbor.pulpartifactory.site:8080
+
+harborAdminPassword: "StrongAdminPassword"
+
+persistence:
+  enabled: true
+  storageClass: "standard"  # Make sure this matches your EKS StorageClass
+  persistentVolumeClaim:
+    registry:
+      size: 25Gi
+      storageClass: "standard"
+    chartmuseum:
+      size: 10Gi
+      storageClass: "standard"
+    database:
+      size: 10Gi
+      storageClass: "standard"
+    redis:
+      size: 1Gi
+      storageClass: "standard"
+    jobservice:
+      size: 5Gi
+      storageClass: "standard"
+    trivy:
+      size: 5Gi
+      storageClass: "standard"

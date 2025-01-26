@@ -1,0 +1,5 @@
+apiVersion: v2
+name: pulp-chart
+description: Helm chart for deploying Pulp and its dependencies
+version: 0.1.0
+appVersion: "stable"

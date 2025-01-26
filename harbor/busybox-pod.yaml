@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: busybox-pod
+  namespace: busybox
+spec:
+  containers:
+  - name: busybox
+    image: ghcr.io/mishragulshan999/busybox:v3
+    command: ["sleep", "172800"]
+  imagePullSecrets:
+  - name: github-registry-secret

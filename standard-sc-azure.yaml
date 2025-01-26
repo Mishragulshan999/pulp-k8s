@@ -1,0 +1,10 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: azurefile  # Name of the new storage class
+provisioner: file.csi.azure.com  # Azure Files provisioner
+parameters:
+  skuName: Standard_LRS  # Azure Files SKU (Standard Locally Redundant Storage)
+allowVolumeExpansion: true
+reclaimPolicy: Retain  # The PV is retained after PVC is deleted
+volumeBindingMode: Immediate  # Bind immediately to a PVC request

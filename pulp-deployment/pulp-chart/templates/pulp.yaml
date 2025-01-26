@@ -1,0 +1,29 @@
+apiVersion: repo-manager.pulpproject.org/v1beta2
+kind: Pulp
+metadata:
+  name: pulp
+  namespace: {{ .Values.pulp.namespace }}
+spec:
+  admin_password_secret: {{ .Values.pulp.adminPasswordSecret }}
+  api:
+    gunicorn_timeout: {{ .Values.pulp.api.gunicornTimeout }}
+    gunicorn_workers: {{ .Values.pulp.api.gunicornWorkers }}
+    replicas: {{ .Values.pulp.api.replicas }}
+  content:
+    gunicorn_timeout: {{ .Values.pulp.content.gunicornTimeout }}
+    gunicorn_workers: {{ .Values.pulp.content.gunicornWorkers }}
+    replicas: {{ .Values.pulp.content.replicas }}
+  worker:
+    replicas: {{ .Values.pulp.worker.replicas }}
+  file_storage_access_mode: {{ .Values.pulp.storage.accessMode }}
+  file_storage_size: {{ .Values.pulp.storage.size }}
+  file_storage_storage_class: {{ .Values.pulp.storage.storageClassName }}
+  pulp_settings:
+    ENABLED_PLUGINS: {{ .Values.pulp.settings.enabledPlugins | toJson }}
+    api_root: {{ .Values.pulp.settings.apiRoot }}
+    allowed_export_paths: {{ .Values.pulp.settings.allowedExportPaths | toJson }}
+    allowed_import_paths: {{ .Values.pulp.settings.allowedImportPaths | toJson }}
+    analytics: {{ .Values.pulp.settings.analytics }}
+    token_server: {{ .Values.pulp.settings.tokenServer }}
+    content_origin: {{ .Values.pulp.settings.contentOrigin }}
+    ansible_api_hostname: {{ .Values.pulp.settings.ansibleApiHostname }}
