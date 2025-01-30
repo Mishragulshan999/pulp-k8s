@@ -24,7 +24,7 @@ jobs:
       - name: Fetch Image List from GitHub Packages
         env:
           TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPO: "pavanbandaru"
+          GITHUB_REPO: "mishragulshan999"
         run: |
           OUTPUT="["
 
