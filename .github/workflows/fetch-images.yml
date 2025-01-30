@@ -1,0 +1,68 @@
+name: Fetch and Compare Images
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:  # Allows manual trigger from GitHub UI
+
+jobs:
+  fetch_images:
+    runs-on: [self-hosted, linux]  # Use your custom runner 'k8s-pulp'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+
+      - name: Set up kubectl
+        run: |
+          sudo apt-get install -y kubectl
+          
+      - name: Fetch container images from GitHub
+        run: |
+          echo "Fetching images from GitHub..."
+          IMAGES=$(curl -s -L \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/users/mishragulshan999/packages?package_type=container" \
+            | jq -r '.[] | {image: .name, url: .html_url}')
+        
+          echo "Fetching deployed tags from Kubernetes..."
+          DEPLOYED_IMAGES=$(kubectl get pods --all-namespaces -o=jsonpath='{.items[*].spec.containers[*].image}' \
+            | tr ' ' '\n')
+
+          OUTPUT="["
+          for row in $(echo "$IMAGES" | jq -c '.'); do
+              IMAGE_NAME=$(echo "$row" | jq -r '.image')
+              GITHUB_TAGS=$(curl -s -L \
+                -H "Accept: application/vnd.github+json" \
+                -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                -H "X-GitHub-Api-Version: 2022-11-28" \
+                "https://api.github.com/users/mishragulshan999/packages/container/$IMAGE_NAME/versions" \
+                | jq -r '.[0].metadata.container.tags[]')
+              
+              for tag in $GITHUB_TAGS; do
+                  if echo "$DEPLOYED_IMAGES" | grep -q "$IMAGE_NAME:$tag"; then
+                      STATUS="Deployed"
+                  else
+                      STATUS="NOT Deployed"
+                  fi
+                  OUTPUT="$OUTPUT{\"Image\":\"$IMAGE_NAME\",\"Tag\":\"$tag\",\"Status\":\"$STATUS\"},"
+              done
+          done
+
+          OUTPUT="${OUTPUT%,}]"
+          echo "$OUTPUT" > output.json
+          echo "JSON output written to output.json"
+        
+      - name: Upload JSON output as artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: output-json
+          path: output.json
