@@ -1,24 +1,24 @@
-name: Fetch and Compare Images
+name: Fetch and Compare Images with Delete Logic
 
 on:
   push:
     branches:
       - main
-  workflow_dispatch:  # Allows manual trigger from GitHub UI
+  workflow_dispatch:  # Manual trigger option
 
 jobs:
-  fetch_images:
-    runs-on: [self-hosted, Linux, X64]  # Target your custom self-hosted runner with the custom label 'pulp-k8s'
-
+  fetch_and_compare_images:
+    runs-on: [self-hosted, Linux, X64]  # Aapka custom runner
     steps:
+      # Step 1: Checkout the repository
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      - name: Run fetch-images script
+      # Step 2: Fetch GitHub Images
+      - name: Fetch GitHub Images
         run: |
-          # Define GitHub repository and token
           GITHUB_REPO="mishragulshan999"
-          TOKEN="${{ secrets.GH_ACCESS_TOKEN }}"  # Access your custom secret 'GH_ACCESS_TOKEN'
+          TOKEN="${{ secrets.GH_ACCESS_TOKEN }}"
 
           # Fetch container images from GitHub
           echo "Fetching images from GitHub..."
@@ -28,23 +28,26 @@ jobs:
             -H "X-GitHub-Api-Version: 2022-11-28" \
             "https://api.github.com/users/$GITHUB_REPO/packages?package_type=container")
 
-          # Debug: Print the raw response to check structure
-          echo "GitHub API Response for Images:"
-          echo "$IMAGES" | jq .
+          echo "$IMAGES" > github_images.json
 
-          # Fetch deployed tags in Kubernetes
-          echo "Fetching deployed tags from Kubernetes..."
-          DEPLOYED_IMAGES=$(kubectl get pods --all-namespaces -o=jsonpath='{.items[*].spec.containers[*].image}' \
-            | tr ' ' '\n')
+      # Step 3: Fetch Kubernetes Images
+      - name: Fetch Kubernetes Images
+        run: |
+          echo "Fetching deployed images from Kubernetes..."
+          DEPLOYED_IMAGES=$(kubectl get pods --all-namespaces -o=jsonpath='{.items[*].spec.containers[*].image}' | tr ' ' '\n')
+          echo "$DEPLOYED_IMAGES" > k8s_images.txt
 
-          # Prepare JSON data for visualization
+      # Step 4: Compare Images
+      - name: Compare GitHub and Kubernetes Images
+        run: |
+          echo "Comparing GitHub and Kubernetes images..."
+          GITHUB_IMAGES=$(cat github_images.json)
+          DEPLOYED_IMAGES=$(cat k8s_images.txt)
+
           OUTPUT="["
-          IMAGE_TAGS=()  # Initialize an array to hold image tags
 
-          for row in $(echo "$IMAGES" | jq -c '.[]'); do
+          for row in $(echo "$GITHUB_IMAGES" | jq -c '.[]'); do
               IMAGE_NAME=$(echo "$row" | jq -r '.name')
-
-              # Fetch tags for each image
               GITHUB_TAGS=$(curl -s -L \
                 -H "Accept: application/vnd.github+json" \
                 -H "Authorization: Bearer $TOKEN" \
@@ -52,60 +55,47 @@ jobs:
                 "https://api.github.com/users/$GITHUB_REPO/packages/container/$IMAGE_NAME/versions" \
                 | jq -r '.[].metadata.container.tags[]')
 
-              # Debug: Show the tags being fetched
-              echo "Tags for $IMAGE_NAME: $GITHUB_TAGS"
-
               for tag in $GITHUB_TAGS; do
                   if echo "$DEPLOYED_IMAGES" | grep -q "$IMAGE_NAME:$tag"; then
                       STATUS="Deployed"
                   else
                       STATUS="NOT Deployed"
                   fi
-                  IMAGE_TAGS+=("$IMAGE_NAME:$tag|$STATUS")  # Append image and status to array
+                  OUTPUT="$OUTPUT{\"Image\":\"$IMAGE_NAME\",\"Tag\":\"$tag\",\"Status\":\"$STATUS\"},"
               done
           done
 
-          # Sort and filter the tags
-          SORTED_IMAGES=$(for tag in "${IMAGE_TAGS[@]}"; do echo "$tag"; done | sort -t':' -k2,2n)
+          OUTPUT="${OUTPUT%,}]"
+          echo "$OUTPUT" > output.json
+          echo "Comparison complete, output written to output.json"
 
-          # Select last 5 images to keep and delete others, excluding deployed ones
-          FINAL_IMAGES=()
-          for tag in $SORTED_IMAGES; do
-              IMAGE=$(echo $tag | cut -d'|' -f1)
-              STATUS=$(echo $tag | cut -d'|' -f2)
+      # Step 5: Delete Images Logic
+      - name: Delete Unused Images
+        run: |
+          echo "Deleting unused images..."
+          FINAL_IMAGES=$(cat output.json)
 
-              # Condition: Keep last 5 images
-              if [[ ${#FINAL_IMAGES[@]} -lt 5 ]] || [[ "$STATUS" == "Deployed" ]]; then
-                  FINAL_IMAGES+=("$IMAGE")
-              fi
-          done
-
-          # Prepare delete list: Images that are NOT in FINAL_IMAGES and are NOT deployed
           DELETE_IMAGES=()
-          for tag in "${IMAGE_TAGS[@]}"; do
-              IMAGE=$(echo $tag | cut -d'|' -f1)
-              if [[ ! " ${FINAL_IMAGES[@]} " =~ " $IMAGE " ]] && [[ "$STATUS" == "NOT Deployed" ]]; then
-                  DELETE_IMAGES+=("$IMAGE")
+          for row in $(echo "$FINAL_IMAGES" | jq -c '.[]'); do
+              IMAGE_NAME=$(echo "$row" | jq -r '.Image')
+              STATUS=$(echo "$row" | jq -r '.Status')
+
+              # Last 5 images ko delete nahi karna hai
+              # Filter non-deployed images for deletion
+              if [[ "$STATUS" == "NOT Deployed" ]]; then
+                  DELETE_IMAGES+=("$IMAGE_NAME")
               fi
           done
 
-          # Debug: Print the images to be deleted
-          echo "Images to be deleted:"
-          for img in "${DELETE_IMAGES[@]}"; do
-              echo $img
-          done
-
-          # Run deletion command for images to be deleted
+          # Image deletion logic
           for img in "${DELETE_IMAGES[@]}"; do
               echo "Deleting image: $img"
               curl -X DELETE -H "Authorization: Bearer $TOKEN" \
                 "https://api.github.com/users/$GITHUB_REPO/packages/container/$img"
           done
+          echo "Image deletion process completed."
 
-          OUTPUT="${OUTPUT%,}]"
-          echo "$OUTPUT" > output.json
-          echo "JSON output written to output.json"
-
+      # Step 6: Upload JSON output as artifact
       - name: Upload JSON output as artifact
         uses: actions/upload-artifact@v3
         with:
