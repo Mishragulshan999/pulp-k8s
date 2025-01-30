@@ -28,6 +28,10 @@ jobs:
             -H "X-GitHub-Api-Version: 2022-11-28" \
             "https://api.github.com/users/$GITHUB_REPO/packages?package_type=container")
 
+          # Debug: Check the structure of the response
+          echo "GitHub API response:"
+          echo "$IMAGES" | jq .
+
           echo "$IMAGES" > github_images.json
           echo "GitHub images fetched successfully"
 
@@ -48,10 +52,11 @@ jobs:
 
           OUTPUT="["
 
-          # Loop through GitHub images
+          # Loop over GitHub images and compare with Kubernetes images
           for row in $(echo "$GITHUB_IMAGES" | jq -c '.[]'); do
               IMAGE_NAME=$(echo "$row" | jq -r '.name')
-              
+              echo "Processing image: $IMAGE_NAME"
+
               # Fetch tags associated with each image
               GITHUB_TAGS=$(curl -s -L \
                 -H "Accept: application/vnd.github+json" \
@@ -59,7 +64,7 @@ jobs:
                 -H "X-GitHub-Api-Version: 2022-11-28" \
                 "https://api.github.com/users/$GITHUB_REPO/packages/container/$IMAGE_NAME/versions")
 
-              # Debug the structure of the response to ensure correct data
+              # Debug: Check the structure of the response
               echo "GitHub API response for $IMAGE_NAME:"
               echo "$GITHUB_TAGS" | jq .
 
@@ -71,9 +76,8 @@ jobs:
                   continue
               fi
 
-              # Process each tag and compare with Kubernetes deployed images
+              # Loop over tags and check deployment status
               for tag in $GITHUB_TAGS; do
-                  echo "Processing image $IMAGE_NAME with tag $tag"
                   if echo "$DEPLOYED_IMAGES" | grep -q "$IMAGE_NAME:$tag"; then
                       STATUS="Deployed"
                   else
@@ -86,19 +90,12 @@ jobs:
           OUTPUT="${OUTPUT%,}]"
           echo "$OUTPUT" > output.json
           echo "Comparison complete, output written to output.json"
-          cat output.json  # Display output to debug
 
       # Step 5: Delete Unused Images
       - name: Delete Unused Images
         run: |
           echo "Deleting unused images..."
           FINAL_IMAGES=$(cat output.json)
-
-          # Check if output.json has data
-          if [ -z "$FINAL_IMAGES" ]; then
-            echo "No images to process for deletion."
-            exit 0
-          fi
 
           DELETE_IMAGES=()
           for row in $(echo "$FINAL_IMAGES" | jq -c '.[]'); do
@@ -111,10 +108,7 @@ jobs:
               fi
           done
 
-          # Log images that will be deleted
-          echo "Images to be deleted: ${DELETE_IMAGES[@]}"
-
-          # Image deletion logic (Delete images in GitHub)
+          # Image deletion logic
           for img in "${DELETE_IMAGES[@]}"; do
               echo "Deleting image: $img"
               curl -X DELETE -H "Authorization: Bearer $TOKEN" \
