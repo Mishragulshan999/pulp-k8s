@@ -39,6 +39,8 @@ jobs:
 
           # Prepare JSON data for visualization
           OUTPUT="["
+          IMAGE_TAGS=()  # Initialize an array to hold image tags
+
           for row in $(echo "$IMAGES" | jq -c '.[]'); do
               IMAGE_NAME=$(echo "$row" | jq -r '.name')
 
@@ -59,8 +61,45 @@ jobs:
                   else
                       STATUS="NOT Deployed"
                   fi
-                  OUTPUT="$OUTPUT{\"Image\":\"$IMAGE_NAME\",\"Tag\":\"$tag\",\"Status\":\"$STATUS\"},"
+                  IMAGE_TAGS+=("$IMAGE_NAME:$tag|$STATUS")  # Append image and status to array
               done
+          done
+
+          # Sort and filter the tags
+          SORTED_IMAGES=$(for tag in "${IMAGE_TAGS[@]}"; do echo "$tag"; done | sort -t':' -k2,2n)
+
+          # Select last 5 images to keep and delete others, excluding deployed ones
+          FINAL_IMAGES=()
+          for tag in $SORTED_IMAGES; do
+              IMAGE=$(echo $tag | cut -d'|' -f1)
+              STATUS=$(echo $tag | cut -d'|' -f2)
+
+              # Condition: Keep last 5 images
+              if [[ ${#FINAL_IMAGES[@]} -lt 5 ]] || [[ "$STATUS" == "Deployed" ]]; then
+                  FINAL_IMAGES+=("$IMAGE")
+              fi
+          done
+
+          # Prepare delete list: Images that are NOT in FINAL_IMAGES and are NOT deployed
+          DELETE_IMAGES=()
+          for tag in "${IMAGE_TAGS[@]}"; do
+              IMAGE=$(echo $tag | cut -d'|' -f1)
+              if [[ ! " ${FINAL_IMAGES[@]} " =~ " $IMAGE " ]] && [[ "$STATUS" == "NOT Deployed" ]]; then
+                  DELETE_IMAGES+=("$IMAGE")
+              fi
+          done
+
+          # Debug: Print the images to be deleted
+          echo "Images to be deleted:"
+          for img in "${DELETE_IMAGES[@]}"; do
+              echo $img
+          done
+
+          # Run deletion command for images to be deleted
+          for img in "${DELETE_IMAGES[@]}"; do
+              echo "Deleting image: $img"
+              curl -X DELETE -H "Authorization: Bearer $TOKEN" \
+                "https://api.github.com/users/$GITHUB_REPO/packages/container/$img"
           done
 
           OUTPUT="${OUTPUT%,}]"
