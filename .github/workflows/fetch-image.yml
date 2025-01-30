@@ -9,6 +9,9 @@ on:
 jobs:
   fetch_and_compare_images:
     runs-on: [self-hosted, Linux, X64]  # Custom self-hosted runner
+    env:
+      GITHUB_TOKEN: ${{ secrets.GH_ACCESS_TOKEN }}  # Set the token as an environment variable
+
     steps:
       # Step 1: Checkout the repository
       - name: Checkout repository
@@ -18,13 +21,12 @@ jobs:
       - name: Fetch GitHub Images
         run: |
           GITHUB_REPO="mishragulshan999"
-          TOKEN="${{ secrets.GH_ACCESS_TOKEN }}"
 
           # Fetch container images from GitHub
           echo "Fetching images from GitHub..."
           IMAGES=$(curl -s -L \
             -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer $TOKEN" \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             "https://api.github.com/users/$GITHUB_REPO/packages?package_type=container")
 
@@ -60,7 +62,7 @@ jobs:
               # Fetch tags associated with each image
               GITHUB_TAGS=$(curl -s -L \
                 -H "Accept: application/vnd.github+json" \
-                -H "Authorization: Bearer $TOKEN" \
+                -H "Authorization: Bearer $GITHUB_TOKEN" \
                 -H "X-GitHub-Api-Version: 2022-11-28" \
                 "https://api.github.com/users/$GITHUB_REPO/packages/container/$IMAGE_NAME/versions")
 
@@ -111,7 +113,7 @@ jobs:
           # Image deletion logic
           for img in "${DELETE_IMAGES[@]}"; do
               echo "Deleting image: $img"
-              curl -X DELETE -H "Authorization: Bearer $TOKEN" \
+              curl -X DELETE -H "Authorization: Bearer $GITHUB_TOKEN" \
                 "https://api.github.com/users/$GITHUB_REPO/packages/container/$img"
           done
           echo "Image deletion process completed."
