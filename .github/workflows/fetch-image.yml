@@ -14,14 +14,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      - name: Define variables
+      - name: Run fetch-images script
         run: |
           # Define GitHub repository and token
           GITHUB_REPO="mishragulshan999"
           TOKEN="${{ secrets.GH_ACCESS_TOKEN }}"  # Access your custom secret 'GH_ACCESS_TOKEN'
 
-      - name: Run fetch-images script
-        run: |
           # Fetch container images from GitHub
           echo "Fetching images from GitHub..."
           IMAGES=$(curl -s -L \
@@ -30,16 +28,14 @@ jobs:
             -H "X-GitHub-Api-Version: 2022-11-28" \
             "https://api.github.com/users/$GITHUB_REPO/packages?package_type=container" \
             | jq -r '.[] | {image: .name, url: .html_url}')
-          
+
           # Fetch deployed tags in Kubernetes
           echo "Fetching deployed tags from Kubernetes..."
           DEPLOYED_IMAGES=$(kubectl get pods --all-namespaces -o=jsonpath='{.items[*].spec.containers[*].image}' \
             | tr ' ' '\n')
 
-          # Prepare JSON data for visualization and deletion logic
+          # Prepare JSON data for visualization
           OUTPUT="["
-          DELETED_IMAGES=""
-
           for row in $(echo "$IMAGES" | jq -c '.'); do
               IMAGE_NAME=$(echo "$row" | jq -r '.image')
               GITHUB_TAGS=$(curl -s -L \
@@ -49,28 +45,13 @@ jobs:
                 "https://api.github.com/users/$GITHUB_REPO/packages/container/$IMAGE_NAME/versions" \
                 | jq -r '.[0].metadata.container.tags[]')
               
-              IMAGE_TAGS=()
               for tag in $GITHUB_TAGS; do
-                  IMAGE_TAGS+=("$tag")
-              done
-
-              # Keep the last 5 tags, and check if they're deployed
-              for tag in ${IMAGE_TAGS[@]}; do
-                  STATUS="NOT Deployed"
                   if echo "$DEPLOYED_IMAGES" | grep -q "$IMAGE_NAME:$tag"; then
                       STATUS="Deployed"
+                  else
+                      STATUS="NOT Deployed"
                   fi
-
-                  # Add logic for deletion
-                  DELETE_STATUS="No"
-                  REASON=""
-                  if [[ ${#IMAGE_TAGS[@]} -gt 5 && "$STATUS" != "Deployed" && ! "$tag" =~ ^v(10|11|12|13|14|15)$ ]]; then
-                      DELETE_STATUS="Yes"
-                      REASON="Not Deployed and older than the last 5 versions"
-                  fi
-                  
-                  # Add entry to output with delete status and reason
-                  OUTPUT="$OUTPUT{\"Image\":\"$IMAGE_NAME\",\"Tag\":\"$tag\",\"Status\":\"$STATUS\",\"Delete\":\"$DELETE_STATUS\",\"Reason\":\"$REASON\"},"
+                  OUTPUT="$OUTPUT{\"Image\":\"$IMAGE_NAME\",\"Tag\":\"$tag\",\"Status\":\"$STATUS\"},"
               done
           done
 
