@@ -1,91 +1,76 @@
-name: Cleanup Old Images
+name: Fetch and Compare Images
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - main
+  workflow_dispatch:  # Allows manual trigger from GitHub UI
 
 jobs:
-  cleanup:
-    runs-on: ubuntu-latest
+  fetch_images:
+    runs-on: [self-hosted, Linux, X64]  # Target your custom self-hosted runner with the custom label 'pulp-k8s'
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v2
 
-      - name: Set up jq (for JSON processing)
-        run: sudo apt-get install -y jq
-
-      - name: Fetch Deployed Images from Kubernetes
+      - name: Define variables
         run: |
-          DEPLOYED_IMAGES=$(kubectl get pods -A -o json | jq -r '.items[].spec.containers[].image' | sort -u)
-          echo "$DEPLOYED_IMAGES" > deployed_images.txt
-        env:
-          KUBECONFIG: ${{ secrets.KUBECONFIG }}
+          # Define GitHub repository and token
+          GITHUB_REPO="mishragulshan999"
+          TOKEN="${{ secrets.GH_ACCESS_TOKEN }}"  # Access your custom secret 'GH_ACCESS_TOKEN'
 
-      - name: Fetch Image List from GitHub Packages
-        env:
-          TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPO: "mishragulshan999"
+      - name: Run fetch-images script
         run: |
-          OUTPUT="["
-
-          # Read Deployed Images from File
-          DEPLOYED_IMAGES=$(cat deployed_images.txt)
-
-          # Get the list of all container images in GitHub Packages
+          # Fetch container images from GitHub
+          echo "Fetching images from GitHub..."
           IMAGES=$(curl -s -L \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer $TOKEN" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             "https://api.github.com/users/$GITHUB_REPO/packages?package_type=container" \
-            | jq -r '.[] | {image: .name}')
+            | jq -r '.[] | {image: .name, url: .html_url}')
+          
+          # Fetch deployed tags in Kubernetes
+          echo "Fetching deployed tags from Kubernetes..."
+          DEPLOYED_IMAGES=$(kubectl get pods --all-namespaces -o=jsonpath='{.items[*].spec.containers[*].image}' \
+            | tr ' ' '\n')
+
+          # Prepare JSON data for visualization and deletion logic
+          OUTPUT="["
+          DELETED_IMAGES=""
 
           for row in $(echo "$IMAGES" | jq -c '.'); do
               IMAGE_NAME=$(echo "$row" | jq -r '.image')
-
-              # Fetch GitHub tags for each image
               GITHUB_TAGS=$(curl -s -L \
                 -H "Accept: application/vnd.github+json" \
                 -H "Authorization: Bearer $TOKEN" \
                 -H "X-GitHub-Api-Version: 2022-11-28" \
                 "https://api.github.com/users/$GITHUB_REPO/packages/container/$IMAGE_NAME/versions" \
-                | jq -r '.[].metadata.container.tags' | jq -r '.[]' | sort -V)
+                | jq -r '.[0].metadata.container.tags[]')
+              
+              IMAGE_TAGS=()
+              for tag in $GITHUB_TAGS; do
+                  IMAGE_TAGS+=("$tag")
+              done
 
-              TAGS_ARRAY=($GITHUB_TAGS)
-              TAG_COUNT=${#TAGS_ARRAY[@]}
-
-              for ((i=0; i<TAG_COUNT; i++)); do
-                  TAG="${TAGS_ARRAY[$i]}"
-                  IMAGE_TAG="$IMAGE_NAME:$TAG"
-
-                  if echo "$DEPLOYED_IMAGES" | grep -q "$IMAGE_TAG"; then
+              # Keep the last 5 tags, and check if they're deployed
+              for tag in ${IMAGE_TAGS[@]}; do
+                  STATUS="NOT Deployed"
+                  if echo "$DEPLOYED_IMAGES" | grep -q "$IMAGE_NAME:$tag"; then
                       STATUS="Deployed"
-                      DELETE="No"
-                      REASON="Deployed on K8s"
-                  elif (( i >= TAG_COUNT - 5 )); then
-                      STATUS="NOT Deployed"
-                      DELETE="No"
-                      REASON="Reserved (Last 5)"
-                  else
-                      STATUS="NOT Deployed"
-                      DELETE="Yes"
-                      REASON="Old Image, Safe to Delete"
-
-                      # Delete Image
-                      DELETE_RESPONSE=$(curl -X DELETE -s -L \
-                          -H "Accept: application/vnd.github+json" \
-                          -H "Authorization: Bearer $TOKEN" \
-                          -H "X-GitHub-Api-Version: 2022-11-28" \
-                          "https://api.github.com/users/$GITHUB_REPO/packages/container/$IMAGE_NAME/versions/$TAG")
-
-                      if [[ $? -eq 0 ]]; then
-                          REASON="Deleted Successfully"
-                      else
-                          REASON="Failed to Delete"
-                      fi
                   fi
 
-                  # Add to JSON Output
-                  OUTPUT="$OUTPUT{\"Image\":\"$IMAGE_NAME\",\"Tag\":\"$TAG\",\"Status\":\"$STATUS\",\"Delete\":\"$DELETE\",\"Reason\":\"$REASON\"},"
+                  # Add logic for deletion
+                  DELETE_STATUS="No"
+                  REASON=""
+                  if [[ ${#IMAGE_TAGS[@]} -gt 5 && "$STATUS" != "Deployed" && ! "$tag" =~ ^v(10|11|12|13|14|15)$ ]]; then
+                      DELETE_STATUS="Yes"
+                      REASON="Not Deployed and older than the last 5 versions"
+                  fi
+                  
+                  # Add entry to output with delete status and reason
+                  OUTPUT="$OUTPUT{\"Image\":\"$IMAGE_NAME\",\"Tag\":\"$tag\",\"Status\":\"$STATUS\",\"Delete\":\"$DELETE_STATUS\",\"Reason\":\"$REASON\"},"
               done
           done
 
@@ -93,7 +78,7 @@ jobs:
           echo "$OUTPUT" > output.json
           echo "JSON output written to output.json"
 
-      - name: Upload JSON to Artifact
+      - name: Upload JSON output as artifact
         uses: actions/upload-artifact@v3
         with:
           name: output-json
