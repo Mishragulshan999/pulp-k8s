@@ -1,57 +1,75 @@
-name: Cleanup Old Container Images
+name: Fetch, Compare & Cleanup Images
 
 on:
-  schedule:
-    - cron: '0 3 * * *'  # Runs daily at 3 AM UTC
+  push:
+    branches:
+      - main
   workflow_dispatch:  # Manual trigger
 
 jobs:
-  cleanup:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+  fetch_and_cleanup:
+    runs-on: [self-hosted, Linux, X64]  # Self-hosted runner
 
-      - name: Get List of Images in GitHub Packages
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Fetch Images from GitHub Packages
         env:
-          TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPO: "pavanbandaru/pulp-k8s"
+          GITHUB_REPO: "mishragulshan999"
+          TOKEN: ${{ secrets.GH_ACCESS_TOKEN }}
         run: |
+          echo "Fetching images from GitHub..."
+          
+          # Fetch container images correctly (FIXED)
           IMAGES=$(curl -s -L \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer $TOKEN" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            "https://api.github.com/users/$GITHUB_REPO/packages?package_type=container" \
-            | jq -r '.[].name')
-          
+            "https://api.github.com/orgs/$GITHUB_REPO/packages?package_type=container" \
+            | jq -r '.[] | select(.name != null) | {image: .name, url: .html_url}')
+
+          if [ -z "$IMAGES" ]; then
+            echo "No images found in GitHub Packages!"
+            exit 1
+          fi
+
           echo "IMAGES=$IMAGES" >> $GITHUB_ENV
 
-      - name: Get Deployed Images from Kubernetes
+      - name: Fetch Deployed Images from Kubernetes
         run: |
-          DEPLOYED_IMAGES=$(kubectl get pods -A -o json | jq -r '.items[].spec.containers[].image' | sort -u)
+          echo "Fetching deployed images from Kubernetes..."
+          DEPLOYED_IMAGES=$(kubectl get pods --all-namespaces -o=jsonpath='{.items[*].spec.containers[*].image}' \
+            | tr ' ' '\n' | sort -u)
+
           echo "DEPLOYED_IMAGES=$DEPLOYED_IMAGES" >> $GITHUB_ENV
 
-      - name: Cleanup Old Image Versions with Detailed Logging
+      - name: Compare & Cleanup Old Images
         env:
-          TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPO: "pavanbandaru/pulp-k8s"
+          GITHUB_REPO: "mishragulshan999"
+          TOKEN: ${{ secrets.GH_ACCESS_TOKEN }}
         run: |
           OUTPUT="["
-          for IMAGE_NAME in $IMAGES; do
+          for row in $(echo "$IMAGES" | jq -c '.'); do
+              IMAGE_NAME=$(echo "$row" | jq -r '.image')
               echo "Processing image: $IMAGE_NAME"
-              
-              # Get all tags sorted by version
+
+              # Fetch image versions
               GITHUB_TAGS=$(curl -s -L \
                 -H "Accept: application/vnd.github+json" \
                 -H "Authorization: Bearer $TOKEN" \
                 -H "X-GitHub-Api-Version: 2022-11-28" \
-                "https://api.github.com/users/$GITHUB_REPO/packages/container/$IMAGE_NAME/versions" \
+                "https://api.github.com/orgs/$GITHUB_REPO/packages/container/$IMAGE_NAME/versions" \
                 | jq -r '.[].metadata.container.tags[]' | sort -V)
 
-              # Store last 5 versions
+              if [ -z "$GITHUB_TAGS" ]; then
+                echo "No tags found for $IMAGE_NAME, skipping..."
+                continue
+              fi
+
+              # Preserve last 5 versions
               LAST_5_VERSIONS=$(echo "$GITHUB_TAGS" | tail -n 5)
 
-              # Iterate over all versions
               for tag in $GITHUB_TAGS; do
                   if echo "$DEPLOYED_IMAGES" | grep -q "$IMAGE_NAME:$tag"; then
                       STATUS="Deployed"
@@ -59,20 +77,19 @@ jobs:
                       REASON="Deployed on Kubernetes"
                   else
                       STATUS="NOT Deployed"
-                      DELETE="Yes"
-                      REASON=""
-
-                      # Check if it should be preserved
                       if echo "$LAST_5_VERSIONS" | grep -q "$tag"; then
                           DELETE="No"
                           REASON="Reserved (Last 5 Versions)"
+                      else
+                          DELETE="Yes"
+                          REASON="Old Version"
                       fi
                   fi
 
                   OUTPUT="$OUTPUT{\"Image\":\"$IMAGE_NAME\",\"Tag\":\"$tag\",\"Status\":\"$STATUS\",\"Delete\":\"$DELETE\",\"Reason\":\"$REASON\"},"
               done
 
-              # Identify versions to delete
+              # Cleanup Old Versions
               for tag in $GITHUB_TAGS; do
                   if echo "$LAST_5_VERSIONS" | grep -q "$tag"; then
                       echo "Skipping preserved tag: $IMAGE_NAME:$tag"
@@ -86,7 +103,7 @@ jobs:
                           -H "Accept: application/vnd.github+json" \
                           -H "Authorization: Bearer $TOKEN" \
                           -H "X-GitHub-Api-Version: 2022-11-28" \
-                          "https://api.github.com/users/$GITHUB_REPO/packages/container/$IMAGE_NAME/versions" \
+                          "https://api.github.com/orgs/$GITHUB_REPO/packages/container/$IMAGE_NAME/versions" \
                           | jq -r ".[] | select(.metadata.container.tags[] == \"$tag\") | .id")
 
                       if [ -n "$VERSION_ID" ]; then
@@ -94,7 +111,7 @@ jobs:
                               -H "Accept: application/vnd.github+json" \
                               -H "Authorization: Bearer $TOKEN" \
                               -H "X-GitHub-Api-Version: 2022-11-28" \
-                              "https://api.github.com/users/$GITHUB_REPO/packages/container/$IMAGE_NAME/versions/$VERSION_ID"
+                              "https://api.github.com/orgs/$GITHUB_REPO/packages/container/$IMAGE_NAME/versions/$VERSION_ID"
                           echo "Deleted $IMAGE_NAME:$tag"
                       fi
                   fi
@@ -106,7 +123,136 @@ jobs:
           echo "JSON output written to output.json"
 
       - name: Upload JSON Output as Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
-          name: image-status
+          name: output-json
+          path: output.json
+name: Fetch, Compare & Cleanup Images
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:  # Manual trigger
+
+jobs:
+  fetch_and_cleanup:
+    runs-on: [self-hosted, Linux, X64]  # Self-hosted runner
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Fetch Images from GitHub Packages
+        env:
+          GITHUB_REPO: "mishragulshan999"
+          TOKEN: ${{ secrets.GH_ACCESS_TOKEN }}
+        run: |
+          echo "Fetching images from GitHub..."
+          
+          # Fetch container images correctly (FIXED)
+          IMAGES=$(curl -s -L \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/orgs/$GITHUB_REPO/packages?package_type=container" \
+            | jq -r '.[] | select(.name != null) | {image: .name, url: .html_url}')
+
+          if [ -z "$IMAGES" ]; then
+            echo "No images found in GitHub Packages!"
+            exit 1
+          fi
+
+          echo "IMAGES=$IMAGES" >> $GITHUB_ENV
+
+      - name: Fetch Deployed Images from Kubernetes
+        run: |
+          echo "Fetching deployed images from Kubernetes..."
+          DEPLOYED_IMAGES=$(kubectl get pods --all-namespaces -o=jsonpath='{.items[*].spec.containers[*].image}' \
+            | tr ' ' '\n' | sort -u)
+
+          echo "DEPLOYED_IMAGES=$DEPLOYED_IMAGES" >> $GITHUB_ENV
+
+      - name: Compare & Cleanup Old Images
+        env:
+          GITHUB_REPO: "mishragulshan999"
+          TOKEN: ${{ secrets.GH_ACCESS_TOKEN }}
+        run: |
+          OUTPUT="["
+          for row in $(echo "$IMAGES" | jq -c '.'); do
+              IMAGE_NAME=$(echo "$row" | jq -r '.image')
+              echo "Processing image: $IMAGE_NAME"
+
+              # Fetch image versions
+              GITHUB_TAGS=$(curl -s -L \
+                -H "Accept: application/vnd.github+json" \
+                -H "Authorization: Bearer $TOKEN" \
+                -H "X-GitHub-Api-Version: 2022-11-28" \
+                "https://api.github.com/orgs/$GITHUB_REPO/packages/container/$IMAGE_NAME/versions" \
+                | jq -r '.[].metadata.container.tags[]' | sort -V)
+
+              if [ -z "$GITHUB_TAGS" ]; then
+                echo "No tags found for $IMAGE_NAME, skipping..."
+                continue
+              fi
+
+              # Preserve last 5 versions
+              LAST_5_VERSIONS=$(echo "$GITHUB_TAGS" | tail -n 5)
+
+              for tag in $GITHUB_TAGS; do
+                  if echo "$DEPLOYED_IMAGES" | grep -q "$IMAGE_NAME:$tag"; then
+                      STATUS="Deployed"
+                      DELETE="No"
+                      REASON="Deployed on Kubernetes"
+                  else
+                      STATUS="NOT Deployed"
+                      if echo "$LAST_5_VERSIONS" | grep -q "$tag"; then
+                          DELETE="No"
+                          REASON="Reserved (Last 5 Versions)"
+                      else
+                          DELETE="Yes"
+                          REASON="Old Version"
+                      fi
+                  fi
+
+                  OUTPUT="$OUTPUT{\"Image\":\"$IMAGE_NAME\",\"Tag\":\"$tag\",\"Status\":\"$STATUS\",\"Delete\":\"$DELETE\",\"Reason\":\"$REASON\"},"
+              done
+
+              # Cleanup Old Versions
+              for tag in $GITHUB_TAGS; do
+                  if echo "$LAST_5_VERSIONS" | grep -q "$tag"; then
+                      echo "Skipping preserved tag: $IMAGE_NAME:$tag"
+                      continue
+                  elif echo "$DEPLOYED_IMAGES" | grep -q "$IMAGE_NAME:$tag"; then
+                      echo "Skipping deployed tag: $IMAGE_NAME:$tag"
+                      continue
+                  else
+                      echo "Deleting old tag: $IMAGE_NAME:$tag"
+                      VERSION_ID=$(curl -s -L \
+                          -H "Accept: application/vnd.github+json" \
+                          -H "Authorization: Bearer $TOKEN" \
+                          -H "X-GitHub-Api-Version: 2022-11-28" \
+                          "https://api.github.com/orgs/$GITHUB_REPO/packages/container/$IMAGE_NAME/versions" \
+                          | jq -r ".[] | select(.metadata.container.tags[] == \"$tag\") | .id")
+
+                      if [ -n "$VERSION_ID" ]; then
+                          curl -X DELETE -L \
+                              -H "Accept: application/vnd.github+json" \
+                              -H "Authorization: Bearer $TOKEN" \
+                              -H "X-GitHub-Api-Version: 2022-11-28" \
+                              "https://api.github.com/orgs/$GITHUB_REPO/packages/container/$IMAGE_NAME/versions/$VERSION_ID"
+                          echo "Deleted $IMAGE_NAME:$tag"
+                      fi
+                  fi
+              done
+          done
+
+          OUTPUT="${OUTPUT%,}]"
+          echo "$OUTPUT" > output.json
+          echo "JSON output written to output.json"
+
+      - name: Upload JSON Output as Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: output-json
           path: output.json
