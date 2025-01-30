@@ -8,7 +8,7 @@ on:
 
 jobs:
   fetch_images:
-    runs-on: [self-hosted, pulp-k8s]  # Target your custom self-hosted runner with the custom label 'pulp-k8s'
+    runs-on: [self-hosted, Linux, X64 ]  # Target your custom self-hosted runner with the custom label 'pulp-k8s'
 
     steps:
       - name: Checkout repository
