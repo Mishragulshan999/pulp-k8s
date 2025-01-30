@@ -8,7 +8,7 @@ on:
 
 jobs:
   fetch_and_compare_images:
-    runs-on: [self-hosted, Linux, X64]  # Aapka custom runner
+    runs-on: [self-hosted, Linux, X64]  # Custom self-hosted runner
     steps:
       # Step 1: Checkout the repository
       - name: Checkout repository
@@ -29,6 +29,7 @@ jobs:
             "https://api.github.com/users/$GITHUB_REPO/packages?package_type=container")
 
           echo "$IMAGES" > github_images.json
+          echo "GitHub images fetched successfully"
 
       # Step 3: Fetch Kubernetes Images
       - name: Fetch Kubernetes Images
@@ -36,8 +37,9 @@ jobs:
           echo "Fetching deployed images from Kubernetes..."
           DEPLOYED_IMAGES=$(kubectl get pods --all-namespaces -o=jsonpath='{.items[*].spec.containers[*].image}' | tr ' ' '\n')
           echo "$DEPLOYED_IMAGES" > k8s_images.txt
+          echo "Kubernetes images fetched successfully"
 
-      # Step 4: Compare Images
+      # Step 4: Compare GitHub and Kubernetes Images
       - name: Compare GitHub and Kubernetes Images
         run: |
           echo "Comparing GitHub and Kubernetes images..."
@@ -48,13 +50,22 @@ jobs:
 
           for row in $(echo "$GITHUB_IMAGES" | jq -c '.[]'); do
               IMAGE_NAME=$(echo "$row" | jq -r '.name')
+              
+              # Fetch the tags associated with each image
               GITHUB_TAGS=$(curl -s -L \
                 -H "Accept: application/vnd.github+json" \
                 -H "Authorization: Bearer $TOKEN" \
                 -H "X-GitHub-Api-Version: 2022-11-28" \
                 "https://api.github.com/users/$GITHUB_REPO/packages/container/$IMAGE_NAME/versions" \
-                | jq -r '.[].metadata.container.tags[]')
+                | jq -r '.[].metadata.container.tags[]?')
 
+              # Check if tags are available and process each
+              if [[ -z "$GITHUB_TAGS" ]]; then
+                echo "No tags found for image $IMAGE_NAME, skipping..."
+                continue
+              fi
+
+              # Process each tag
               for tag in $GITHUB_TAGS; do
                   if echo "$DEPLOYED_IMAGES" | grep -q "$IMAGE_NAME:$tag"; then
                       STATUS="Deployed"
@@ -69,7 +80,7 @@ jobs:
           echo "$OUTPUT" > output.json
           echo "Comparison complete, output written to output.json"
 
-      # Step 5: Delete Images Logic
+      # Step 5: Delete Unused Images
       - name: Delete Unused Images
         run: |
           echo "Deleting unused images..."
@@ -80,8 +91,7 @@ jobs:
               IMAGE_NAME=$(echo "$row" | jq -r '.Image')
               STATUS=$(echo "$row" | jq -r '.Status')
 
-              # Last 5 images ko delete nahi karna hai
-              # Filter non-deployed images for deletion
+              # Logic to exclude last 5 images from deletion
               if [[ "$STATUS" == "NOT Deployed" ]]; then
                   DELETE_IMAGES+=("$IMAGE_NAME")
               fi
