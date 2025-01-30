@@ -8,43 +8,41 @@ on:
 
 jobs:
   fetch_images:
-    runs-on: [self-hosted, linux]  # Use your custom runner 'k8s-pulp'
+    runs-on: [self-hosted, pulp-k8s]  # Target your custom self-hosted runner with the custom label 'pulp-k8s'
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      - name: Set up jq
+      - name: Run fetch-images script
         run: |
-          sudo apt-get update
-          sudo apt-get install -y jq
+          # Define GitHub repository and token
+          GITHUB_REPO="mishragulshan999"
+          TOKEN="${{ secrets.GITHUB_TOKEN }}"
 
-      - name: Set up kubectl
-        run: |
-          sudo apt-get install -y kubectl
-          
-      - name: Fetch container images from GitHub
-        run: |
+          # Fetch container images from GitHub
           echo "Fetching images from GitHub..."
           IMAGES=$(curl -s -L \
             -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Authorization: Bearer $TOKEN" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            "https://api.github.com/users/mishragulshan999/packages?package_type=container" \
+            "https://api.github.com/users/$GITHUB_REPO/packages?package_type=container" \
             | jq -r '.[] | {image: .name, url: .html_url}')
-        
+
+          # Fetch deployed tags in Kubernetes
           echo "Fetching deployed tags from Kubernetes..."
           DEPLOYED_IMAGES=$(kubectl get pods --all-namespaces -o=jsonpath='{.items[*].spec.containers[*].image}' \
             | tr ' ' '\n')
 
+          # Prepare JSON data for visualization
           OUTPUT="["
           for row in $(echo "$IMAGES" | jq -c '.'); do
               IMAGE_NAME=$(echo "$row" | jq -r '.image')
               GITHUB_TAGS=$(curl -s -L \
                 -H "Accept: application/vnd.github+json" \
-                -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                -H "Authorization: Bearer $TOKEN" \
                 -H "X-GitHub-Api-Version: 2022-11-28" \
-                "https://api.github.com/users/mishragulshan999/packages/container/$IMAGE_NAME/versions" \
+                "https://api.github.com/users/$GITHUB_REPO/packages/container/$IMAGE_NAME/versions" \
                 | jq -r '.[0].metadata.container.tags[]')
               
               for tag in $GITHUB_TAGS; do
@@ -60,7 +58,7 @@ jobs:
           OUTPUT="${OUTPUT%,}]"
           echo "$OUTPUT" > output.json
           echo "JSON output written to output.json"
-        
+
       - name: Upload JSON output as artifact
         uses: actions/upload-artifact@v3
         with:
