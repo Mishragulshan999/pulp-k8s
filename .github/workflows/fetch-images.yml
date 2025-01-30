@@ -18,7 +18,7 @@ jobs:
         run: |
           # Define GitHub repository and token
           GITHUB_REPO="mishragulshan999"
-          TOKEN="${{ secrets.GITHUB_TOKEN }}"
+          TOKEN="${{ secrets.GH_ACCESS_TOKEN }}"  # Access your custom secret 'GH_ACCESS_TOKEN'
 
           # Fetch container images from GitHub
           echo "Fetching images from GitHub..."
