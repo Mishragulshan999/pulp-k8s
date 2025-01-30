@@ -127,8 +127,6 @@ jobs:
         with:
           name: output-json
           path: output.json
-name: Fetch, Compare & Cleanup Images
-
 on:
   push:
     branches:
