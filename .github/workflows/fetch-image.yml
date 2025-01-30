@@ -14,12 +14,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      - name: Run fetch-images script
+      - name: Define Variables
         run: |
           # Define GitHub repository and token
           GITHUB_REPO="mishragulshan999"
           TOKEN="${{ secrets.GH_ACCESS_TOKEN }}"  # Access your custom secret 'GH_ACCESS_TOKEN'
 
+      - name: Run fetch-images script
+        run: |
           # Fetch container images from GitHub
           echo "Fetching images from GitHub..."
           IMAGES=$(curl -s -L \
@@ -34,8 +36,10 @@ jobs:
           DEPLOYED_IMAGES=$(kubectl get pods --all-namespaces -o=jsonpath='{.items[*].spec.containers[*].image}' \
             | tr ' ' '\n')
 
-          # Prepare JSON data for visualization
+          # Initialize output variable
           OUTPUT="["
+          
+          # Iterate over each image from GitHub
           for row in $(echo "$IMAGES" | jq -c '.'); do
               IMAGE_NAME=$(echo "$row" | jq -r '.image')
               GITHUB_TAGS=$(curl -s -L \
@@ -45,13 +49,28 @@ jobs:
                 "https://api.github.com/users/$GITHUB_REPO/packages/container/$IMAGE_NAME/versions" \
                 | jq -r '.[0].metadata.container.tags[]')
               
+              # Create array to hold all tags and statuses
+              TAGS=()
               for tag in $GITHUB_TAGS; do
                   if echo "$DEPLOYED_IMAGES" | grep -q "$IMAGE_NAME:$tag"; then
                       STATUS="Deployed"
                   else
                       STATUS="NOT Deployed"
                   fi
-                  OUTPUT="$OUTPUT{\"Image\":\"$IMAGE_NAME\",\"Tag\":\"$tag\",\"Status\":\"$STATUS\"},"
+                  TAGS+=("$tag:$STATUS")
+              done
+
+              # Get the tags in sorted order (latest tags first)
+              SORTED_TAGS=$(echo "${TAGS[@]}" | tr ' ' '\n' | sort -r | head -n 5)
+
+              # Mark the tags to be kept (latest 5 or deployed images)
+              for tag in $SORTED_TAGS; do
+                  TAG_NAME=$(echo $tag | cut -d: -f1)
+                  STATUS=$(echo $tag | cut -d: -f2)
+
+                  if [ "$STATUS" == "Deployed" ] || [ $(echo "$TAGS" | grep -c "$TAG_NAME") -le 5 ]; then
+                      OUTPUT="$OUTPUT{\"Image\":\"$IMAGE_NAME\",\"Tag\":\"$TAG_NAME\",\"Status\":\"$STATUS\"},"
+                  fi
               done
           done
 
