@@ -20,55 +20,100 @@ jobs:
           GITHUB_REPO="mishragulshan999"
           TOKEN="${{ secrets.GH_ACCESS_TOKEN }}"  # Access your custom secret 'GH_ACCESS_TOKEN'
 
-          # Fetch container images from GitHub
-          echo "Fetching images from GitHub..."
+          # Function to draw a box
+          draw_box() {
+            local width=$1
+            printf "%0.s-" $(seq 1 $width)
+            echo ""
+          }
+
+          # Function to delete an image version
+          delete_image_version() {
+            local image_name=$1
+            local version_id=$2
+            echo "Deleting image version: $image_name - ID: $version_id"
+
+            curl -L -X DELETE \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer $TOKEN" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/users/$GITHUB_REPO/packages/container/$image_name/versions/$version_id"
+
+            echo "Deleted version ID: $version_id"
+          }
+
+          # Fetch the list of all container images from GitHub
           IMAGES=$(curl -s -L \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer $TOKEN" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            "https://api.github.com/users/$GITHUB_REPO/packages?package_type=container")
+            "https://api.github.com/users/$GITHUB_REPO/packages?package_type=container" \
+            | grep -oP '"name":\s*"\K[^"]+')
 
-          # Extract image names and URLs
-          IMAGE_NAMES=$(echo "$IMAGES" | grep -oP '"name":\s*"\K[^"]+')
-          IMAGE_URLS=$(echo "$IMAGES" | grep -oP '"html_url":\s*"\K[^"]+')
+          # Process each image
+          for IMAGE_NAME in $IMAGES; do
+            echo "Processing image: $IMAGE_NAME"
 
-          # Fetch deployed tags in Kubernetes
-          echo "Fetching deployed tags from Kubernetes..."
-          DEPLOYED_IMAGES=$(kubectl get pods --all-namespaces -o=jsonpath='{.items[*].spec.containers[*].image}' \
-            | tr ' ' '\n')
+            # Fetch versions from GitHub
+            IMAGE_VERSIONS=$(curl -s -L \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer $TOKEN" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/users/$GITHUB_REPO/packages/container/$IMAGE_NAME/versions" \
+              | grep -oP '"id":\s*\K\d+')
 
-          # Prepare JSON data for visualization
-          OUTPUT="["
-          paste <(echo "$IMAGE_NAMES") <(echo "$IMAGE_URLS") | while IFS=$'\t' read -r IMAGE_NAME IMAGE_URL; do
-              GITHUB_TAGS=$(curl -s -L \
+            # Fetch Kubernetes deployed tags (with full image name)
+            K8S_TAGS=$(kubectl get pods --all-namespaces -o=jsonpath='{.items[*].spec.containers[*].image}' | tr ' ' '\n' | grep -E "^ghcr.io/$GITHUB_REPO/$IMAGE_NAME:")
+
+            # Debugging: Show what tags are fetched from Kubernetes
+            echo "Fetched Kubernetes tags: $K8S_TAGS"
+            echo "Fetched GitHub versions: $IMAGE_VERSIONS"
+
+            # Print comparison table
+            BOX_WIDTH=80
+            draw_box $BOX_WIDTH
+            printf "| %-75s |\n" "Image: $IMAGE_NAME"
+            draw_box $BOX_WIDTH
+            printf "| %-22s | %-22s |\n" "GitHub Tag" "K8s Deployed?"
+            draw_box $BOX_WIDTH
+
+            while read -r version_id; do
+              tag=$(curl -s -L \
                 -H "Accept: application/vnd.github+json" \
                 -H "Authorization: Bearer $TOKEN" \
                 -H "X-GitHub-Api-Version: 2022-11-28" \
-                "https://api.github.com/users/$GITHUB_REPO/packages/container/$IMAGE_NAME/versions" \
+                "https://api.github.com/users/$GITHUB_REPO/packages/container/$IMAGE_NAME/versions/$version_id" \
                 | grep -oP '"tags":\s*\[\K[^\]]+' | tr ',' '\n' | tr -d '"')
 
-              # Check if tags are available
-              if [[ -z "$GITHUB_TAGS" ]]; then
-                  echo "No tags found for image $IMAGE_NAME"
-                  continue
+              if echo "$K8S_TAGS" | grep -qE "^ghcr.io/$GITHUB_REPO/$IMAGE_NAME:$tag$"; then
+                printf "| %-22s | %-22s |\n" "$tag" "Yes"
+              else
+                printf "| %-22s | %-22s |\n" "$tag" "No"
               fi
+            done <<< "$IMAGE_VERSIONS"
 
-              for tag in $GITHUB_TAGS; do
-                  if echo "$DEPLOYED_IMAGES" | grep -q "$IMAGE_NAME:$tag"; then
-                      STATUS="Deployed"
-                  else
-                      STATUS="NOT Deployed"
-                  fi
-                  OUTPUT="$OUTPUT{\"Image\":\"$IMAGE_NAME\",\"Tag\":\"$tag\",\"Status\":\"$STATUS\"},"
+            draw_box $BOX_WIDTH
+            echo ""
+
+            # Extract IDs and tags
+            TOTAL_VERSIONS=$(echo "$IMAGE_VERSIONS" | wc -l)
+            DELETE_COUNT=$((TOTAL_VERSIONS - 5))
+
+            if [[ $DELETE_COUNT -gt 0 ]]; then
+              echo "Deleting $DELETE_COUNT old versions for $IMAGE_NAME..."
+              echo ""
+
+              # Delete old versions if they are not deployed in Kubernetes
+              echo "$IMAGE_VERSIONS" | head -n $DELETE_COUNT | while read -r version_id; do
+                if ! echo "$K8S_TAGS" | grep -qE "^ghcr.io/$GITHUB_REPO/$IMAGE_NAME:$tag$"; then
+                  delete_image_version "$IMAGE_NAME" "$version_id"
+                else
+                  echo "Skipping deletion of deployed image: $tag"
+                fi
               done
+            else
+              echo "No old images to delete for $IMAGE_NAME."
+            fi
+
+            echo ""
           done
-
-          OUTPUT="${OUTPUT%,}]"
-          echo "$OUTPUT" > output.json
-          echo "JSON output written to output.json"
-
-      - name: Upload JSON output as artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: output-json
-          path: output.json
