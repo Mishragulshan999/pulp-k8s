@@ -30,14 +30,16 @@ jobs:
             -H "Authorization: Bearer $TOKEN" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             "https://api.github.com/users/$GITHUB_REPO/packages?package_type=container" \
-            | jq -r '.[].name')
+            | jq -r '.[].name' | tr '\n' ' ')  # Store images as a space-separated string
 
-          echo "IMAGES=$IMAGES" >> $GITHUB_ENV
+          echo "IMAGES=$IMAGES" >> $GITHUB_ENV  # Store images in environment variable
 
       - name: Fetch and compare image versions for each image
         run: |
-          # Loop through each image fetched from GitHub
-          for IMAGE_NAME in $IMAGES; do
+          # Split the IMAGES variable into an array
+          IMAGES_ARRAY=($IMAGES)
+
+          for IMAGE_NAME in "${IMAGES_ARRAY[@]}"; do
             echo "Processing image: $IMAGE_NAME"
 
             # Fetch versions from GitHub
@@ -90,7 +92,6 @@ jobs:
                     -H "Authorization: Bearer $TOKEN" \
                     -H "X-GitHub-Api-Version: 2022-11-28" \
                     "https://api.github.com/users/$GITHUB_REPO/packages/container/$IMAGE_NAME/versions/$version_id"
-
                   echo "Deleted version ID: $version_id"
                 else
                   echo "Skipping deletion of deployed image: $tag"
