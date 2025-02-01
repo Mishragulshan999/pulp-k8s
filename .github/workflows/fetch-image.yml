@@ -18,10 +18,17 @@ jobs:
         run: |
           GITHUB_REPO="mishragulshan999"
           TOKEN="${{ secrets.GH_ACCESS_TOKEN }}"  # Access your custom secret 'GH_ACCESS_TOKEN'
-          echo "GitHub Repository: $GITHUB_REPO"
+
+      - name: Function to draw a box
+        run: |
+          # Function to draw a box
+          draw_box() {
+            local width=$1
+            printf "%0.s-" $(seq 1 $width)
+            echo ""
+          }
 
       - name: Fetch list of container images from GitHub
-        id: fetch_images
         run: |
           # Fetch the list of all container images from GitHub
           IMAGES=$(curl -s -L \
@@ -30,18 +37,17 @@ jobs:
             -H "X-GitHub-Api-Version: 2022-11-28" \
             "https://api.github.com/users/$GITHUB_REPO/packages?package_type=container" \
             | jq -r '.[].name')
-          echo "Images fetched: $IMAGES"
-          
-          echo "IMAGES=$IMAGES" >> $GITHUB_ENV
 
-      - name: Process each image
+          echo "IMAGES=$IMAGES" >> $GITHUB_ENV  # Store images into GitHub environment variable
+
+      - name: Fetch and process each image
         run: |
-          # Fetch the IMAGES from the environment
+          # Fetch each image from GitHub and process it
           IMAGES="${{ env.IMAGES }}"
 
           for IMAGE_NAME in $IMAGES; do
             echo "Processing image: $IMAGE_NAME"
-            
+
             # Fetch versions from GitHub
             IMAGE_VERSIONS=$(curl -s -L \
               -H "Accept: application/vnd.github+json" \
@@ -60,11 +66,12 @@ jobs:
 
       - name: Compare GitHub and Kubernetes tags
         run: |
-          BOX_WIDTH=80
           # Print comparison table for each image
+          BOX_WIDTH=80
           for IMAGE_NAME in $IMAGES; do
             echo "Comparing image: $IMAGE_NAME"
-            
+
+            # Function to draw box (repeating the function code)
             draw_box $BOX_WIDTH
             printf "| %-75s |\n" "Image: $IMAGE_NAME"
             draw_box $BOX_WIDTH
@@ -85,6 +92,21 @@ jobs:
 
       - name: Delete old versions (if necessary)
         run: |
+          # Function to delete image version
+          delete_image_version() {
+            local image_name=$1
+            local version_id=$2
+            echo "Deleting image version: $image_name - ID: $version_id"
+
+            curl -L -X DELETE \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer $TOKEN" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/users/$GITHUB_REPO/packages/container/$image_name/versions/$version_id"
+
+            echo "Deleted version ID: $version_id"
+          }
+
           for IMAGE_NAME in $IMAGES; do
             # Extract IDs and tags
             TOTAL_VERSIONS=$(echo "$IMAGE_VERSIONS" | wc -l)
