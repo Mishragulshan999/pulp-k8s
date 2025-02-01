@@ -21,6 +21,7 @@ jobs:
           echo "GitHub Repository: $GITHUB_REPO"
 
       - name: Fetch list of container images from GitHub
+        id: fetch_images
         run: |
           # Fetch the list of all container images from GitHub
           IMAGES=$(curl -s -L \
@@ -30,9 +31,14 @@ jobs:
             "https://api.github.com/users/$GITHUB_REPO/packages?package_type=container" \
             | jq -r '.[].name')
           echo "Images fetched: $IMAGES"
+          
+          echo "IMAGES=$IMAGES" >> $GITHUB_ENV
 
       - name: Process each image
         run: |
+          # Fetch the IMAGES from the environment
+          IMAGES="${{ env.IMAGES }}"
+
           for IMAGE_NAME in $IMAGES; do
             echo "Processing image: $IMAGE_NAME"
             
@@ -91,7 +97,7 @@ jobs:
               # Delete old versions if they are not deployed in Kubernetes
               echo "$IMAGE_VERSIONS" | head -n $DELETE_COUNT | while read -r version_id tag created_at; do
                 if ! echo "$K8S_TAGS" | grep -qE "^ghcr.io/$GITHUB_REPO/$IMAGE_NAME:$tag$"; then
-                  delete_image_version "$IMAGE_NAM" "$version_id"
+                  delete_image_version "$IMAGE_NAME" "$version_id"
                 else
                   echo "Skipping deletion of deployed image: $tag"
                 fi
