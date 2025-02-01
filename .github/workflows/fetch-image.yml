@@ -14,33 +14,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      - name: Run fetch-images script
+      - name: Set up GitHub token
+        run: echo "GITHUB_TOKEN=${{ secrets.GH_ACCESS_TOKEN }}" >> $GITHUB_ENV
+
+      - name: Fetch image list from GitHub
+        id: fetch_images
         run: |
-          # Define GitHub repository and token
+          # Define GitHub repository
           GITHUB_REPO="mishragulshan999"
-          TOKEN="${{ secrets.GH_ACCESS_TOKEN }}"  # Access your custom secret 'GH_ACCESS_TOKEN'
-
-          # Function to draw a box
-          draw_box() {
-            local width=$1
-            printf "%0.s-" $(seq 1 $width)
-            echo ""
-          }
-
-          # Function to delete an image version
-          delete_image_version() {
-            local image_name=$1
-            local version_id=$2
-            echo "Deleting image version: $image_name - ID: $version_id"
-
-            curl -L -X DELETE \
-              -H "Accept: application/vnd.github+json" \
-              -H "Authorization: Bearer $TOKEN" \
-              -H "X-GitHub-Api-Version: 2022-11-28" \
-              "https://api.github.com/users/$GITHUB_REPO/packages/container/$image_name/versions/$version_id"
-
-            echo "Deleted version ID: $version_id"
-          }
+          TOKEN="${{ secrets.GH_ACCESS_TOKEN }}"
 
           # Fetch the list of all container images from GitHub
           IMAGES=$(curl -s -L \
@@ -50,7 +32,11 @@ jobs:
             "https://api.github.com/users/$GITHUB_REPO/packages?package_type=container" \
             | jq -r '.[].name')
 
-          # Process each image
+          echo "IMAGES=$IMAGES" >> $GITHUB_ENV
+
+      - name: Fetch and compare image versions for each image
+        run: |
+          # Loop through each image fetched from GitHub
           for IMAGE_NAME in $IMAGES; do
             echo "Processing image: $IMAGE_NAME"
 
@@ -71,11 +57,11 @@ jobs:
 
             # Print comparison table
             BOX_WIDTH=80
-            draw_box $BOX_WIDTH
+            echo "------------------------------------------------------"
             printf "| %-75s |\n" "Image: $IMAGE_NAME"
-            draw_box $BOX_WIDTH
+            echo "------------------------------------------------------"
             printf "| %-22s | %-22s | %-22s |\n" "GitHub Tag" "K8s Deployed?" "Push Date"
-            draw_box $BOX_WIDTH
+            echo "------------------------------------------------------"
 
             while read -r version_id tag created_at; do
               if echo "$K8S_TAGS" | grep -qE "^ghcr.io/$GITHUB_REPO/$IMAGE_NAME:$tag$"; then
@@ -85,7 +71,7 @@ jobs:
               fi
             done <<< "$IMAGE_VERSIONS"
 
-            draw_box $BOX_WIDTH
+            echo "------------------------------------------------------"
             echo ""
 
             # Extract IDs and tags
@@ -99,7 +85,13 @@ jobs:
               # Delete old versions if they are not deployed in Kubernetes
               echo "$IMAGE_VERSIONS" | head -n $DELETE_COUNT | while read -r version_id tag created_at; do
                 if ! echo "$K8S_TAGS" | grep -qE "^ghcr.io/$GITHUB_REPO/$IMAGE_NAME:$tag$"; then
-                  delete_image_version "$IMAGE_NAME" "$version_id"
+                  curl -L -X DELETE \
+                    -H "Accept: application/vnd.github+json" \
+                    -H "Authorization: Bearer $TOKEN" \
+                    -H "X-GitHub-Api-Version: 2022-11-28" \
+                    "https://api.github.com/users/$GITHUB_REPO/packages/container/$IMAGE_NAME/versions/$version_id"
+
+                  echo "Deleted version ID: $version_id"
                 else
                   echo "Skipping deletion of deployed image: $tag"
                 fi
