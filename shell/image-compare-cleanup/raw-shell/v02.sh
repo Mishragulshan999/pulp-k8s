@@ -2,7 +2,7 @@
 
 # Define GitHub repository and token
 GITHUB_REPO="mishragulshan999"
-TOKEN="X-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"
+TOKEN="XXXXXX"
 
 # Fetch the list of all container images from GitHub
 IMAGES=$(curl -s -L \

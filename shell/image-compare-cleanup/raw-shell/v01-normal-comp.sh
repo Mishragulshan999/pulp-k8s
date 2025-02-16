@@ -2,7 +2,7 @@
 
 # Define GitHub user and token
 GITHUB_USER="mishragulshan999"
-TOKEN="X-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"
+TOKEN="XXXXXX"
 
 echo "Fetching all container images from GitHub..."
 echo "-------------------------------------"

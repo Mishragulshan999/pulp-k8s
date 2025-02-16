@@ -1,0 +1,46 @@
+apiVersion: repo-manager.pulpproject.org/v1beta2
+kind: Pulp
+metadata:
+  name: {{ .Values.pulp.name }}
+  namespace: {{ .Values.pulp.namespace }}
+spec:
+  admin_password_secret: {{ .Values.pulp.admin_password_secret }}
+  api:
+    gunicorn_timeout: {{ .Values.pulp.api.gunicorn_timeout }}
+    gunicorn_workers: {{ .Values.pulp.api.gunicorn_workers }}
+    replicas: {{ .Values.pulp.api.replicas }}
+  container_auth_private_key_name: {{ .Values.pulp.container_auth_private_key_name }}
+  container_auth_public_key_name: {{ .Values.pulp.container_auth_public_key_name }}
+  container_token_secret: {{ .Values.pulp.container_token_secret }}
+  content:
+    gunicorn_timeout: {{ .Values.pulp.content.gunicorn_timeout }}
+    gunicorn_workers: {{ .Values.pulp.content.gunicorn_workers }}
+    replicas: {{ .Values.pulp.content.replicas }}
+  database:
+    external_db_secret: {{ .Values.pulp.database_secret }}
+  db_fields_encryption_secret: {{ .Values.pulp.db_fields_encryption_secret }}
+  deployment_type: {{ .Values.pulp.deployment_type }}
+  file_storage_access_mode: {{ .Values.pulp.file_storage.access_mode }}
+  file_storage_size: {{ .Values.pulp.file_storage.size }}
+  file_storage_storage_class: {{ .Values.pulp.file_storage.storage_class }}
+  image: {{ .Values.pulp.image.main }}
+  image_pull_policy: {{ .Values.pulp.image.pull_policy }}
+  image_version: {{ .Values.pulp.image.version }}
+  image_web: {{ .Values.pulp.image.web }}
+  image_web_version: {{ .Values.pulp.image.web_version }}
+  mount_trusted_ca: false
+  pulp_secret_key: {{ .Values.pulp.pulp_secret_key }}
+  worker:
+    replicas: {{ .Values.pulp.worker_replicas }}
+  pulp_settings:
+    ENABLED_PLUGINS:
+      {{- toYaml .Values.pulp.pulp_settings.enabled_plugins | nindent 6 }}
+    api_root: "{{ .Values.pulp.pulp_settings.api_root }}"
+    allowed_export_paths:
+      {{- toYaml .Values.pulp.pulp_settings.allowed_export_paths | nindent 6 }}
+    allowed_import_paths:
+      {{- toYaml .Values.pulp.pulp_settings.allowed_import_paths | nindent 6 }}
+    analytics: {{ .Values.pulp.pulp_settings.analytics }}
+    token_server: "{{ .Values.pulp.pulp_settings.token_server }}"
+    content_origin: "{{ .Values.pulp.pulp_settings.content_origin }}"
+    ansible_api_hostname: "{{ .Values.pulp.pulp_settings.ansible_api_hostname }}"

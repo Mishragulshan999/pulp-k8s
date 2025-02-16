@@ -1,0 +1,50 @@
+namespace: db
+
+secret:
+  name: external-db-config
+  labels:
+    app: external-db
+  data:
+    POSTGRES_DB: cHVscA==
+    POSTGRES_USER: cHVscC1hZG1pbg==
+    POSTGRES_PASSWORD: cGFzc3dvcmQ=
+    POSTGRESQL_DATABASE: cHVscA==
+    POSTGRESQL_USERNAME: cHVscC1hZG1pbg==
+    POSTGRESQL_PASSWORD: cGFzc3dvcmQ=
+
+pvc:
+  name: external-db-pvc
+  labels:
+    app: external-db
+  storageClassName: standard
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+
+deployment:
+  name: postgres
+  labels:
+    app: external-db
+  replicas: 1
+  image: postgres:13
+  imagePullPolicy: IfNotPresent
+  env:
+    POSTGRES_INITDB_ARGS: '--auth-host=scram-sha-256'
+    POSTGRES_HOST_AUTH_METHOD: 'scram-sha-256'
+  containerPort: 5432
+  volumeMounts:
+    mountPath: /var/lib/postgresql/
+    name: postgresdb
+
+service:
+  name: postgres
+  labels:
+    app: external-db
+  selector:
+    app: external-db
+  ports:
+    - port: 5432
+  type: ClusterIP

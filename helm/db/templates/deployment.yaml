@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.deployment.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- toYaml .Values.deployment.labels | nindent 4 }}
+spec:
+  replicas: {{ .Values.deployment.replicas }}
+  selector:
+    matchLabels:
+      app: external-db
+  template:
+    metadata:
+      labels:
+        app: external-db
+    spec:
+      containers:
+        - name: postgres
+          image: {{ .Values.deployment.image }}
+          imagePullPolicy: {{ .Values.deployment.imagePullPolicy }}
+          envFrom:
+          - secretRef:
+              name: {{ .Values.secret.name }}
+          env:
+            - name: POSTGRES_INITDB_ARGS
+              value: "{{ .Values.deployment.env.POSTGRES_INITDB_ARGS }}"
+            - name: POSTGRES_HOST_AUTH_METHOD
+              value: "{{ .Values.deployment.env.POSTGRES_HOST_AUTH_METHOD }}"
+          ports:
+            - containerPort: {{ .Values.deployment.containerPort }}
+          volumeMounts:
+            - mountPath: {{ .Values.deployment.volumeMounts.mountPath }}
+              name: {{ .Values.deployment.volumeMounts.name }}
+      volumes:
+        - name: postgresdb
+          persistentVolumeClaim:
+            claimName: {{ .Values.pvc.name }}

@@ -1,0 +1,56 @@
+namespace: pulp
+
+externalDbSecret:
+  name: external-database
+  labels:
+    app: external-db
+  data:
+    POSTGRES_DB_NAME: cHVscA==
+    POSTGRES_HOST: cG9zdGdyZXMuZGIuc3Zj
+    POSTGRES_PASSWORD: cGFzc3dvcmQ=
+    POSTGRES_PORT: NTQzMg==
+    POSTGRES_SSLMODE: cHJlZmVy
+    POSTGRES_USERNAME: cHVscC1hZG1pbg==
+
+pulp:
+  name: pulp
+  namespace: pulp
+  admin_password_secret: pulp-admin-password
+  container_auth_private_key_name: container_auth_private_key.pem
+  container_auth_public_key_name: container_auth_public_key.pem
+  container_token_secret: pulp-container-auth
+  database_secret: external-database
+  db_fields_encryption_secret: pulp-db-fields-encryption
+  deployment_type: pulp
+  file_storage:
+    access_mode: ReadWriteOnce
+    size: 10Gi
+    storage_class: standard
+  image:
+    main: quay.io/pulp/pulp-minimal
+    pull_policy: Always
+    version: stable
+    web: quay.io/pulp/pulp-web
+    web_version: stable
+  worker_replicas: 1
+  api:
+    gunicorn_timeout: 90
+    gunicorn_workers: 2
+    replicas: 1
+  content:
+    gunicorn_timeout: 90
+    gunicorn_workers: 2
+    replicas: 1
+  pulp_secret_key: pulp-secret-key
+  pulp_settings:
+    enabled_plugins:
+      - pulp_container
+    api_root: "/pulp/"
+    allowed_export_paths:
+      - /tmp
+    allowed_import_paths:
+      - /tmp
+    analytics: false
+    token_server: https://pulpartifactory.site/token/
+    content_origin: http://aaef97b07caee43a5ab8f59df1791e64-2007268407.ap-south-1.elb.amazonaws.com:30001
+    ansible_api_hostname: https://pulpartifactory.site
