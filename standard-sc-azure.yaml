@@ -1,10 +1,19 @@
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: azurefile  # Name of the new storage class
-provisioner: file.csi.azure.com  # Azure Files provisioner
+  name: azurefile-csi-premium-pulp
+provisioner: file.csi.azure.com
 parameters:
-  skuName: Standard_LRS  # Azure Files SKU (Standard Locally Redundant Storage)
+  skuName: Premium_LRS
+mountOptions:
+  - vers=3.0
+  - uid=700
+  - gid=700
+  - file_mode=0777
+  - dir_mode=0777
+  - actimeo=30
+  - mfsylinks
+  - nosharesock
+reclaimPolicy: Retain
 allowVolumeExpansion: true
-reclaimPolicy: Retain  # The PV is retained after PVC is deleted
-volumeBindingMode: Immediate  # Bind immediately to a PVC request
+volumeBindingMode: Immediate
